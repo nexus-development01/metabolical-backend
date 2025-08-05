@@ -246,9 +246,23 @@ def get_enhanced_tag_conditions(tag: str) -> Tuple[str, List[str]]:
     conditions = []
     params = []
     
-    # 1. Exact tag matching (existing logic)
+    # 1. Enhanced tag matching for both JSON and comma-separated formats
+    # JSON format: ["tag", "other"] and comma-separated: "tag, other, another"
+    tag_underscore = tag.replace(" ", "_")
+    tag_hyphen = tag.replace(" ", "-")
+    
+    # Match JSON format with quotes
     conditions.append('(LOWER(tags) LIKE LOWER(?) OR LOWER(tags) LIKE LOWER(?))')
     params.extend([f'%"{tag}"%', f'%"{tag_underscore}"%'])
+    
+    # Match comma-separated format (with surrounding commas or at start/end)
+    conditions.append('(LOWER(tags) LIKE LOWER(?) OR LOWER(tags) LIKE LOWER(?) OR LOWER(tags) LIKE LOWER(?) OR LOWER(tags) LIKE LOWER(?))')
+    params.extend([f'%{tag},%', f'%, {tag},%', f'%, {tag}', f'{tag},%'])
+    
+    # Also match hyphenated versions for tags like "covid-19"
+    if "-" in tag or "_" in tag:
+        conditions.append('(LOWER(tags) LIKE LOWER(?) OR LOWER(tags) LIKE LOWER(?))')
+        params.extend([f'%"{tag_hyphen}"%', f'%{tag_hyphen},%'])
     
     # 2. Enhanced keyword matching if available
     if keywords:
@@ -683,14 +697,26 @@ def get_articles_paginated_optimized(
                         # If it's not JSON, keep as is
                         pass
                 
-                # Parse tags if they're stored as JSON string
+                # Parse tags - handle both JSON arrays and comma-separated strings
                 if article.get('tags'):
                     try:
                         if isinstance(article['tags'], str):
-                            article['tags'] = json.loads(article['tags'])
-                            # Convert underscores back to spaces for frontend compatibility
+                            # First try to parse as JSON
+                            try:
+                                article['tags'] = json.loads(article['tags'])
+                                # Convert underscores back to spaces for frontend compatibility
+                                article['tags'] = [tag.replace("_", " ") if isinstance(tag, str) else tag for tag in article['tags']]
+                            except (json.JSONDecodeError, TypeError):
+                                # If JSON parsing fails, treat as comma-separated string
+                                if article['tags'].strip():
+                                    article['tags'] = [tag.strip().replace("_", " ") for tag in article['tags'].split(',') if tag.strip()]
+                                else:
+                                    article['tags'] = []
+                        elif isinstance(article['tags'], list):
+                            # Already a list, just clean up underscores
                             article['tags'] = [tag.replace("_", " ") if isinstance(tag, str) else tag for tag in article['tags']]
-                    except (json.JSONDecodeError, TypeError):
+                    except Exception as e:
+                        logger.warning(f"Error parsing tags for article {article.get('id')}: {e}")
                         article['tags'] = []
                 else:
                     article['tags'] = []
