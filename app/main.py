@@ -68,22 +68,68 @@ from typing import List
 
 def get_cors_origins() -> List[str]:
     """Get CORS origins based on environment"""
+    # Check if CORS_ORIGINS environment variable is set
+    cors_origins_env = os.getenv("CORS_ORIGINS")
+    
+    if cors_origins_env:
+        # Parse comma-separated origins from environment variable
+        origins = [origin.strip() for origin in cors_origins_env.split(",")]
+        logger.info(f"Using CORS origins from environment: {origins}")
+        return origins
+    
+    # Check for development environment
+    is_development = os.getenv("DEBUG", "false").lower() == "true" or os.getenv("RENDER", "true").lower() == "false"
+    
+    if is_development:
+        # Development CORS origins - allow localhost and common dev ports
+        origins = [
+            # "http://localhost:3000",
+            # "http://localhost:5173", 
+            # "http://localhost:8080",
+            # "http://localhost:4200",
+            # "https://localhost:3000",
+            # "https://localhost:5173",
+            # "http://127.0.0.1:3000",
+            # "http://127.0.0.1:5173",
+            "https://metabolical.in",
+            "https://www.metabolical.in",
+            # "http://127.0.0.1:4200"
+        ]
+        logger.info(f"Development mode: Using permissive CORS origins: {origins}")
+        return origins
+    
     # Production CORS origins - only allow your specific frontend domains
     origins = [
         "https://metabolical.in",
         "https://www.metabolical.in"
     ]
     
+    logger.info(f"Production mode: Using restricted CORS origins: {origins}")
     return origins
 
 # Middleware
 app.add_middleware(GZipMiddleware, minimum_size=1000)
+
+# Get CORS origins
+cors_origins = get_cors_origins()
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=get_cors_origins(),
+    allow_origins=cors_origins,
     allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD"],
+    allow_headers=[
+        "Accept",
+        "Accept-Language", 
+        "Content-Language",
+        "Content-Type",
+        "Authorization",
+        "X-Requested-With",
+        "X-CSRFToken",
+        "Cache-Control"
+    ],
+    expose_headers=["Content-Length", "X-Total-Count"],
+    max_age=3600,  # Cache preflight requests for 1 hour
 )
 
 # Load categories on startup
@@ -382,6 +428,33 @@ def health_check():
                 "database_status": "error",
                 "error": str(e)
             }
+        )
+
+@v1_router.get("/cors-info")
+def get_cors_info():
+    """Get CORS configuration information for debugging"""
+    try:
+        current_origins = get_cors_origins()
+        cors_env = os.getenv("CORS_ORIGINS")
+        is_development = os.getenv("DEBUG", "false").lower() == "true" or os.getenv("RENDER", "true").lower() == "false"
+        
+        return {
+            "cors_origins": current_origins,
+            "cors_origins_env": cors_env,
+            "is_development": is_development,
+            "debug_env": os.getenv("DEBUG"),
+            "render_env": os.getenv("RENDER"),
+            "environment_variables": {
+                "DEBUG": os.getenv("DEBUG"),
+                "RENDER": os.getenv("RENDER"),
+                "CORS_ORIGINS": cors_env
+            }
+        }
+    except Exception as e:
+        logger.error(f"CORS info check failed: {e}")
+        return JSONResponse(
+            status_code=500,
+            content={"error": str(e)}
         )
 
 @v1_router.get("/scheduler/status")
