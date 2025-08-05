@@ -10,7 +10,7 @@ services:
       - HOST=0.0.0.0
       - PYTHONUNBUFFERED=1
       - RENDER=false
-      - CORS_ORIGINS=http://localhost:3000,http://localhost:5173,https://localhost:3000,https://localhost:5173
+      - CORS_ORIGINS=https://metabolical.in,https://www.metabolical.in,https://localhost:3000,https://localhost:5173
       - LOG_LEVEL=info
       - WORKERS=2
     volumes:
