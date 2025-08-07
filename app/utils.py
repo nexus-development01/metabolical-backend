@@ -428,11 +428,54 @@ def get_articles_paginated_optimized(
                 params.extend([search_term, search_term, search_term])
                 
             if category:
-                # Handle both JSON array format and simple string format for categories
-                # The database stores categories as simple strings like 'news', not JSON arrays
-                where_conditions.append("(LOWER(categories) LIKE LOWER(?) OR LOWER(categories) = LOWER(?) OR LOWER(categories) LIKE LOWER(?) OR LOWER(categories) LIKE LOWER(?))")
-                params.extend([f'%{category}%', category, f'%"{category}"%', f'%"{category.capitalize()}"%'])
-                logger.info(f"🔍 Filtering by category: '{category}' (case-insensitive, multiple formats)")
+                # Map frontend categories to database categories and enhanced search
+                category_mappings = {
+                    # Frontend category -> Database categories and related content
+                    'food': ['nutrition', 'lifestyle'],  # Map 'food' to nutrition and lifestyle
+                    'solutions': ['fitness', 'lifestyle', 'nutrition'],  # Map 'solutions' to fitness, lifestyle, nutrition
+                    'blogs_and_opinions': ['news', 'policy'],  # Map 'blogs_and_opinions' to news and policy
+                    'trending': ['international_health', 'healthcare_system'],  # Map 'trending' to international_health and healthcare_system
+                    'news': ['news'],
+                    'diseases': ['diseases'],
+                    'audience': ['audience']
+                }
+                
+                # Get mapped categories for the requested category
+                mapped_categories = category_mappings.get(category.lower(), [category])
+                
+                # Create conditions for all mapped categories
+                category_conditions = []
+                category_params = []
+                
+                for mapped_cat in mapped_categories:
+                    # Direct category match
+                    category_conditions.append("(LOWER(categories) = LOWER(?) OR LOWER(categories) LIKE LOWER(?))")
+                    category_params.extend([mapped_cat, f'%{mapped_cat}%'])
+                
+                # For special frontend categories, also search in content
+                if category.lower() in ['food', 'solutions', 'blogs_and_opinions', 'trending']:
+                    content_keywords = {
+                        'food': ['food', 'nutrition', 'diet', 'eating', 'meal', 'recipe', 'cooking', 'ingredient'],
+                        'solutions': ['treatment', 'therapy', 'cure', 'solution', 'prevention', 'remedy', 'exercise', 'fitness'],
+                        'blogs_and_opinions': ['opinion', 'blog', 'editorial', 'commentary', 'analysis', 'perspective'],
+                        'trending': ['trending', 'latest', 'breakthrough', 'new study', 'recent', 'innovation']
+                    }
+                    
+                    keywords = content_keywords.get(category.lower(), [])
+                    if keywords:
+                        keyword_conditions = []
+                        for keyword in keywords[:5]:  # Limit to top 5 keywords
+                            keyword_conditions.append("(LOWER(title) LIKE LOWER(?) OR LOWER(summary) LIKE LOWER(?))")
+                            category_params.extend([f'%{keyword}%', f'%{keyword}%'])
+                        
+                        if keyword_conditions:
+                            category_conditions.append(f"({' OR '.join(keyword_conditions)})")
+                
+                # Combine all category conditions
+                if category_conditions:
+                    where_conditions.append(f"({' OR '.join(category_conditions)})")
+                    params.extend(category_params)
+                    logger.info(f"🔍 Enhanced filtering for category: '{category}' -> mapped to {mapped_categories} with content search")
                 
             if tag:
                 # Use enhanced categorization system
