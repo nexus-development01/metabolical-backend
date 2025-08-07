@@ -428,12 +428,11 @@ def get_articles_paginated_optimized(
                 params.extend([search_term, search_term, search_term])
                 
             if category:
-                # Since categories is stored as JSON array, we need to search within it
-                # Handle case-insensitive matching for better user experience
-                # Search for the category in both lowercase and capitalized forms
-                where_conditions.append("(LOWER(categories) LIKE LOWER(?) OR LOWER(categories) LIKE LOWER(?))")
-                params.extend([f'%"{category}"%', f'%"{category.capitalize()}"%'])
-                logger.info(f"🔍 Filtering by category: '{category}' (case-insensitive)")
+                # Handle both JSON array format and simple string format for categories
+                # The database stores categories as simple strings like 'news', not JSON arrays
+                where_conditions.append("(LOWER(categories) LIKE LOWER(?) OR LOWER(categories) = LOWER(?) OR LOWER(categories) LIKE LOWER(?) OR LOWER(categories) LIKE LOWER(?))")
+                params.extend([f'%{category}%', category, f'%"{category}"%', f'%"{category.capitalize()}"%'])
+                logger.info(f"🔍 Filtering by category: '{category}' (case-insensitive, multiple formats)")
                 
             if tag:
                 # Use enhanced categorization system

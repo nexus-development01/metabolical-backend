@@ -43,7 +43,7 @@ async def startup_event():
     """Initialize the application and start background scheduler"""
     logger.info("🚀 Starting Metabolical Backend API...")
     
-    # Start the background scheduler
+    # Start the background schedulaer
     try:
         health_scheduler.start_scheduler()
         logger.info("✅ Background scheduler started successfully")
@@ -77,31 +77,50 @@ def get_cors_origins() -> List[str]:
         logger.info(f"Using CORS origins from environment: {origins}")
         return origins
     
-    # Check for development environment
-    is_development = os.getenv("DEBUG", "false").lower() == "true" or os.getenv("RENDER", "true").lower() == "false"
+    # Check for development environment - default to development if not explicitly in production
+    is_development = (
+        os.getenv("DEBUG", "true").lower() == "true" or 
+        os.getenv("RENDER", "false").lower() == "false" or
+        os.getenv("ENVIRONMENT", "development").lower() == "development"
+    )
     
     if is_development:
-        # Development CORS origins - allow localhost and common dev ports
+        # Development CORS origins - allow most common development scenarios
         origins = [
-            # "http://localhost:3000",
-            # "http://localhost:5173", 
-            # "http://localhost:8080",
-            # "http://localhost:4200",
-            # "https://localhost:3000",
-            # "https://localhost:5173",
-            # "http://127.0.0.1:3000",
-            # "http://127.0.0.1:5173",
-            "https://metabolical.in",
-            "https://www.metabolical.in",
-            # "http://127.0.0.1:4200"
+            # Localhost variants
+            "http://localhost:3000", "http://localhost:5173", "http://localhost:8080", "http://localhost:4200",
+            "https://localhost:3000", "https://localhost:5173",
+            "http://127.0.0.1:3000", "http://127.0.0.1:5173", "https://127.0.0.1:5173",
+            "http://127.0.0.1:8000", "https://127.0.0.1:8000",
+            
+            # Your specific network IPs
+            "http://192.168.1.153:5173", "http://192.168.1.145:8000",
+            "https://192.168.1.153:5173", "https://192.168.1.145:8000",
+            
+            # Common local network patterns for development
+            "http://192.168.1.1:5173", "http://192.168.1.2:5173", "http://192.168.1.100:5173",
+            "http://192.168.1.101:5173", "http://192.168.1.102:5173", "http://192.168.1.150:5173",
+            "http://192.168.1.151:5173", "http://192.168.1.152:5173", "http://192.168.1.154:5173",
+            "http://192.168.0.1:5173", "http://192.168.0.100:5173", "http://192.168.0.101:5173",
+            
+            # Production domains
+            "https://metabolical.in", "https://www.metabolical.in"
         ]
-        logger.info(f"Development mode: Using permissive CORS origins: {origins}")
+        
+        logger.info(f"Development mode: Using permissive CORS origins - {len(origins)} origins allowed")
         return origins
     
-    # Production CORS origins - only allow your specific frontend domains
+    # Production CORS origins - allow your specific frontend domains and development IPs
     origins = [
         "https://metabolical.in",
-        "https://www.metabolical.in"
+        "https://www.metabolical.in",
+        "http://127.0.0.1:5173",
+        "https://127.0.0.1:5173",
+        "http://localhost:5173",
+        "https://localhost:5173",
+        # Include local network IPs for development even in production mode
+        "http://192.168.1.153:5173",
+        "http://192.168.1.145:8000",
     ]
     
     logger.info(f"Production mode: Using restricted CORS origins: {origins}")
