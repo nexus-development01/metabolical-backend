@@ -291,6 +291,307 @@ ENHANCED_KEYWORDS = {
         "sexual", "sexuality", "intimacy", "libido", "sexual health",
         "reproductive", "contraception", "STD", "sexual dysfunction",
         "relationship", "intimate"
+    ],
+    
+    # METABOLIC DISEASES CATEGORY
+    "metabolic diseases": [
+        "metabolic diseases", "metabolic syndrome", "metabolic disorder",
+        "cardiometabolic", "endocrine disorder", "metabolic dysfunction"
+    ],
+    "metabolic syndrome": [
+        "metabolic syndrome", "syndrome x", "insulin resistance syndrome",
+        "cardiometabolic syndrome", "multiple metabolic risk factors"
+    ],
+    "obesity": [
+        "obesity", "obese", "overweight", "weight loss", "weight gain",
+        "BMI", "body mass index", "adipose", "fat", "bariatric",
+        "metabolic syndrome", "weight management", "calorie", "portion",
+        "abdominal obesity", "visceral fat", "adiposity"
+    ],
+    "type 2 diabetes": [
+        "type 2 diabetes", "diabetes mellitus", "adult-onset diabetes",
+        "non-insulin dependent diabetes", "t2dm", "diabetic", "hyperglycemia"
+    ],
+    "insulin resistance": [
+        "insulin resistance", "insulin sensitivity", "glucose intolerance",
+        "prediabetes", "impaired glucose tolerance", "insulin signaling"
+    ],
+    "hypertension": [
+        "hypertension", "high blood pressure", "elevated blood pressure",
+        "systolic pressure", "diastolic pressure", "prehypertension",
+        "essential hypertension", "secondary hypertension"
+    ],
+    "hyperlipidemia": [
+        "hyperlipidemia", "dyslipidemia", "high cholesterol", "elevated lipids",
+        "triglycerides", "LDL cholesterol", "HDL cholesterol", "lipid profile"
+    ],
+    "nafld": [
+        "NAFLD", "non-alcoholic fatty liver disease", "fatty liver",
+        "hepatic steatosis", "liver fat", "NASH", "non-alcoholic steatohepatitis"
+    ],
+    "cardiometabolic disorders": [
+        "cardiometabolic", "cardiovascular metabolic", "heart metabolism",
+        "cardiac risk factors", "metabolic cardiovascular disease"
+    ],
+    "mitochondrial dysfunction": [
+        "mitochondrial dysfunction", "mitochondria", "cellular energy",
+        "oxidative phosphorylation", "ATP production", "mitochondrial health"
+    ],
+    "endocrine disruption": [
+        "endocrine disruption", "endocrine disruptors", "hormonal disruption",
+        "EDCs", "hormone interference", "endocrine system"
+    ],
+    
+    # METABOLISM (GENERAL) CATEGORY
+    "basal metabolic rate": [
+        "basal metabolic rate", "BMR", "resting metabolic rate", "RMR",
+        "metabolic rate", "energy expenditure", "caloric needs"
+    ],
+    "energy homeostasis": [
+        "energy homeostasis", "energy balance", "caloric balance",
+        "energy regulation", "metabolic balance", "energy metabolism"
+    ],
+    "anabolism": [
+        "anabolism", "anabolic", "biosynthesis", "tissue building",
+        "protein synthesis", "muscle building", "growth processes"
+    ],
+    "catabolism": [
+        "catabolism", "catabolic", "breakdown", "metabolic breakdown",
+        "energy release", "tissue breakdown", "degradation"
+    ],
+    "glucose metabolism": [
+        "glucose metabolism", "blood sugar", "glycolysis", "gluconeogenesis",
+        "glucose regulation", "carbohydrate metabolism", "glycemic control"
+    ],
+    "lipid metabolism": [
+        "lipid metabolism", "fat metabolism", "lipolysis", "lipogenesis",
+        "fatty acid oxidation", "cholesterol metabolism", "triglyceride metabolism"
+    ],
+    "protein metabolism": [
+        "protein metabolism", "amino acid metabolism", "protein synthesis",
+        "protein breakdown", "nitrogen balance", "amino acids"
+    ],
+    "nutrient absorption": [
+        "nutrient absorption", "intestinal absorption", "bioavailability",
+        "digestive absorption", "nutrient uptake", "malabsorption"
+    ],
+    "hormonal regulation": [
+        "hormonal regulation", "endocrine regulation", "hormone control",
+        "metabolic hormones", "insulin", "leptin", "ghrelin", "cortisol"
+    ],
+    "gut microbiota": [
+        "gut microbiota", "microbiome", "intestinal bacteria", "gut bacteria",
+        "digestive microbes", "probiotics", "gut health", "dysbiosis"
+    ],
+    
+    # FOOD & NUTRITION CATEGORY (ENHANCED)
+    "macronutrients": [
+        "macronutrients", "carbohydrates", "proteins", "fats", "lipids",
+        "macros", "energy nutrients", "caloric nutrients"
+    ],
+    "micronutrients": [
+        "micronutrients", "vitamins", "minerals", "trace elements",
+        "essential nutrients", "vitamin deficiency", "mineral deficiency"
+    ],
+    "nutrient deficiency": [
+        "nutrient deficiency", "malnutrition", "vitamin deficiency",
+        "mineral deficiency", "undernutrition", "nutritional gaps"
+    ],
+    "overnutrition": [
+        "overnutrition", "excess nutrition", "caloric excess", "overeating",
+        "nutritional excess", "overconsumption"
+    ],
+    "dietary patterns": [
+        "dietary patterns", "eating patterns", "meal patterns", "diet quality",
+        "nutritional patterns", "food habits", "eating behaviors"
+    ],
+    "processed foods": [
+        "processed foods", "food processing", "packaged foods",
+        "convenience foods", "industrial foods", "food manufacturing"
+    ],
+    "ultra-processed foods": [
+        "ultra-processed foods", "UPFs", "highly processed", "industrial formulations",
+        "food additives", "artificial ingredients", "processed food products"
+    ],
+    "caloric intake": [
+        "caloric intake", "calorie consumption", "energy intake",
+        "daily calories", "caloric density", "energy consumption"
+    ],
+    "glycemic index": [
+        "glycemic index", "GI", "blood sugar response", "glucose response",
+        "glycemic load", "carbohydrate ranking", "sugar impact"
+    ],
+    "dietary fiber": [
+        "dietary fiber", "fiber", "roughage", "insoluble fiber", "soluble fiber",
+        "prebiotic fiber", "resistant starch", "bulk"
+    ],
+    "antioxidants": [
+        "antioxidants", "free radicals", "oxidative stress", "polyphenols",
+        "flavonoids", "carotenoids", "vitamin C", "vitamin E"
+    ],
+    "probiotics prebiotics": [
+        "probiotics", "prebiotics", "beneficial bacteria", "gut flora",
+        "live cultures", "fermented foods", "digestive health"
+    ],
+    
+    # AGRICULTURE CATEGORY
+    "agrochemicals": [
+        "agrochemicals", "agricultural chemicals", "farm chemicals",
+        "crop chemicals", "agricultural inputs", "pesticides", "herbicides"
+    ],
+    "pesticide residues": [
+        "pesticide residues", "chemical residues", "pesticide contamination",
+        "food residues", "agricultural residues", "toxic residues"
+    ],
+    "gmos": [
+        "GMOs", "genetically modified organisms", "genetic modification",
+        "bioengineered foods", "transgenic crops", "genetic engineering"
+    ],
+    "monoculture": [
+        "monoculture", "crop monoculture", "agricultural monoculture",
+        "single crop farming", "biodiversity loss", "crop uniformity"
+    ],
+    "soil degradation": [
+        "soil degradation", "soil erosion", "soil depletion", "soil health",
+        "topsoil loss", "agricultural degradation", "land degradation"
+    ],
+    "crop diversity": [
+        "crop diversity", "agricultural biodiversity", "genetic diversity",
+        "crop varieties", "heirloom varieties", "seed diversity"
+    ],
+    "food security": [
+        "food security", "food insecurity", "food access", "food availability",
+        "hunger", "malnutrition", "food systems", "nutrition security"
+    ],
+    "agroecology": [
+        "agroecology", "ecological farming", "sustainable agriculture",
+        "regenerative agriculture", "ecological principles", "farm ecology"
+    ],
+    "organic farming": [
+        "organic farming", "organic agriculture", "chemical-free farming",
+        "natural farming", "certified organic", "biological farming"
+    ],
+    "livestock emissions": [
+        "livestock emissions", "animal agriculture", "methane emissions",
+        "greenhouse gases", "cattle emissions", "agricultural emissions"
+    ],
+    "agro-industrial processing": [
+        "agro-industrial processing", "food processing industry",
+        "industrial agriculture", "agricultural processing", "food manufacturing"
+    ],
+    
+    # SUGAR & SWEETENERS CATEGORY
+    "added sugars": [
+        "added sugars", "free sugars", "refined sugars", "sugar additives",
+        "sweeteners", "sugar content", "hidden sugars"
+    ],
+    "high-fructose corn syrup": [
+        "high-fructose corn syrup", "HFCS", "corn syrup", "fructose syrup",
+        "industrial sweetener", "liquid sugar"
+    ],
+    "refined carbohydrates": [
+        "refined carbohydrates", "processed carbs", "simple carbohydrates",
+        "white flour", "refined grains", "stripped carbs"
+    ],
+    "artificial sweeteners": [
+        "artificial sweeteners", "sugar substitutes", "non-caloric sweeteners",
+        "aspartame", "sucralose", "saccharin", "sugar alternatives"
+    ],
+    "sugar-sweetened beverages": [
+        "sugar-sweetened beverages", "SSBs", "soft drinks", "sodas",
+        "sweet drinks", "sugary drinks", "liquid calories"
+    ],
+    "insulin spike": [
+        "insulin spike", "blood sugar spike", "glucose spike", "glycemic response",
+        "insulin response", "postprandial glucose"
+    ],
+    "fructose metabolism": [
+        "fructose metabolism", "fructose processing", "liver fructose",
+        "fructose pathways", "fruit sugar metabolism"
+    ],
+    "glycemic load": [
+        "glycemic load", "GL", "glucose load", "carbohydrate impact",
+        "blood sugar load", "glycemic burden"
+    ],
+    "sugar addiction": [
+        "sugar addiction", "sugar cravings", "sweet addiction",
+        "sugar dependency", "food addiction", "sugar withdrawal"
+    ],
+    "hidden sugars": [
+        "hidden sugars", "concealed sugars", "disguised sugars",
+        "sugar aliases", "sugar names", "stealth sugars"
+    ],
+    
+    # AIR POLLUTION (METABOLIC CONNECTION) CATEGORY
+    "particulate matter": [
+        "particulate matter", "PM2.5", "PM10", "air particles",
+        "fine particles", "ultrafine particles", "airborne particles"
+    ],
+    "oxidative stress": [
+        "oxidative stress", "free radical damage", "cellular oxidation",
+        "antioxidant defense", "reactive oxygen species", "ROS"
+    ],
+    "inflammation": [
+        "inflammation", "inflammatory response", "chronic inflammation",
+        "inflammatory markers", "systemic inflammation", "immune response"
+    ],
+    "endocrine-disrupting chemicals": [
+        "endocrine-disrupting chemicals", "EDCs", "hormone disruptors",
+        "chemical interference", "hormonal chemicals", "toxic chemicals"
+    ],
+    "metabolic dysregulation": [
+        "metabolic dysregulation", "metabolic disruption", "metabolic imbalance",
+        "metabolic dysfunction", "hormonal imbalance", "endocrine disruption"
+    ],
+    "respiratory-metabolic link": [
+        "respiratory-metabolic link", "lung-metabolism connection",
+        "breathing and metabolism", "respiratory health", "pulmonary function"
+    ],
+    "urban smog": [
+        "urban smog", "city pollution", "metropolitan air quality",
+        "urban air pollution", "smog formation", "photochemical smog"
+    ],
+    "toxic air exposure": [
+        "toxic air exposure", "air toxins", "atmospheric pollutants",
+        "airborne toxins", "environmental toxins", "air contamination"
+    ],
+    
+    # WATER POLLUTION (METABOLIC CONNECTION) CATEGORY
+    "heavy metals": [
+        "heavy metals", "lead", "mercury", "cadmium", "arsenic",
+        "toxic metals", "metal contamination", "metal poisoning"
+    ],
+    "nitrate contamination": [
+        "nitrate contamination", "nitrates", "water nitrates",
+        "agricultural runoff", "fertilizer contamination", "groundwater nitrates"
+    ],
+    "microplastics": [
+        "microplastics", "plastic particles", "plastic pollution",
+        "nanoplastics", "plastic contamination", "environmental plastics"
+    ],
+    "pesticide runoff": [
+        "pesticide runoff", "agricultural runoff", "chemical runoff",
+        "water contamination", "pesticide pollution", "chemical leaching"
+    ],
+    "endocrine disruptors": [
+        "endocrine disruptors", "hormone disruptors", "EDCs",
+        "hormonal chemicals", "chemical interference", "toxic chemicals"
+    ],
+    "toxic algal blooms": [
+        "toxic algal blooms", "harmful algae", "algae toxins",
+        "water blooms", "cyanobacteria", "blue-green algae"
+    ],
+    "drinking water safety": [
+        "drinking water safety", "water quality", "safe drinking water",
+        "water contamination", "water purity", "potable water"
+    ],
+    "bioaccumulation": [
+        "bioaccumulation", "biomagnification", "toxic accumulation",
+        "chemical buildup", "environmental persistence", "food chain contamination"
+    ],
+    "industrial effluents": [
+        "industrial effluents", "industrial waste", "chemical discharge",
+        "factory pollution", "industrial contamination", "wastewater"
     ]
 }
 
