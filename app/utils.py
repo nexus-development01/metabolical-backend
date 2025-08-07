@@ -959,7 +959,7 @@ def get_articles_paginated_optimized(
             # Get articles
             query = f"""
                 SELECT id, title, summary, NULL as content, url, source, date, categories as category, 
-                       NULL as subcategory, tags, NULL as image_url, authors as author 
+                       subcategory, tags, NULL as image_url, authors as author 
                 FROM articles 
                 {where_clause} 
                 {order_clause} 

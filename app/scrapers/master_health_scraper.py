@@ -79,14 +79,34 @@ class MasterHealthScraper:
             'Accept-Language': 'en-US,en;q=0.9',
         })
         
-        # Health keywords for searches
+        # Enhanced health keywords for comprehensive metabolic health coverage
         self.health_keywords = [
-            "metabolic health", "diabetes", "nutrition", "diet", "fitness", "wellness",
-            "mental health", "heart disease", "obesity", "lifestyle", "exercise",
-            "public health", "food safety", "sleep disorder", "immunity", "preventive care"
+            # Core Metabolic Health Terms
+            "metabolic health", "metabolic syndrome", "diabetes", "insulin resistance", "obesity",
+            "type 2 diabetes", "prediabetes", "glucose metabolism", "lipid metabolism",
+            
+            # Nutrition & Food Science
+            "nutrition", "diet", "processed foods", "ultra-processed foods", "sugar", "fructose",
+            "artificial sweeteners", "glycemic index", "micronutrients", "gut microbiome",
+            
+            # Lifestyle & Prevention
+            "fitness", "exercise", "physical activity", "weight management", "preventive care",
+            "lifestyle medicine", "stress management", "sleep health", "circadian rhythm",
+            
+            # Environmental Health
+            "endocrine disruptors", "air pollution", "water pollution", "pesticides", "heavy metals",
+            "microplastics", "environmental toxins", "chemical exposure",
+            
+            # Agriculture & Food Systems
+            "sustainable agriculture", "organic farming", "GMOs", "food security", "soil health",
+            "agricultural chemicals", "food safety", "industrial farming",
+            
+            # Broader Health Topics
+            "mental health", "cardiovascular health", "inflammation", "autoimmune", "hormone health",
+            "thyroid health", "adrenal health", "women's health", "men's health"
         ]
         
-        # Unified RSS sources - Optimized list (verified working URLs)
+        # Unified RSS sources - Comprehensive list covering metabolic health, nutrition, environment, and agriculture
         self.rss_sources = [
             # Major News Outlets - Health Sections (Verified Working)
             {"name": "BBC Health", "url": "http://feeds.bbci.co.uk/news/health/rss.xml", "category": "health_news"},
@@ -94,14 +114,44 @@ class MasterHealthScraper:
             {"name": "CNN Health", "url": "http://rss.cnn.com/rss/edition.rss", "category": "health_news"},
             {"name": "NPR Health", "url": "https://feeds.npr.org/1001/rss.xml", "category": "health_news"},
             
-            # Medical and Health Information Sources - Fast loading
-            {"name": "Medical News Today", "url": "https://www.medicalnewstoday.com/rss", "category": "health_info"},
+            # 🧬 Medical & Scientific News Sources - Metabolic Health Focus
+            {"name": "Medical News Today", "url": "https://www.medicalnewstoday.com/rss", "category": "medical_research"},
             {"name": "Healthline News", "url": "https://www.healthline.com/rss", "category": "health_info"},
+            {"name": "WebMD News", "url": "https://www.webmd.com/rss/rss.aspx?RSSSource=RSS_PUBLIC", "category": "health_info"},
             {"name": "Medical Xpress", "url": "https://medicalxpress.com/rss-feed/", "category": "medical_research"},
             {"name": "ScienceDaily Health", "url": "https://www.sciencedaily.com/rss/health_medicine.xml", "category": "medical_research"},
+            {"name": "ScienceDaily Environmental Health", "url": "https://www.sciencedaily.com/rss/health_medicine/environmental_health.xml", "category": "environmental_health"},
             
-            # Government sources (verified working)
+            # Government & Authoritative Sources
             {"name": "NIH News Releases", "url": "https://www.nih.gov/news-events/news-releases/feed", "category": "medical_research"},
+            {"name": "CDC Newsroom", "url": "https://tools.cdc.gov/api/v2/resources/media/316422.rss", "category": "public_health"},
+            {"name": "WHO News", "url": "https://www.who.int/rss-feeds/news-english.xml", "category": "global_health"},
+            
+            # 🥗 Nutrition & Food Science Sources
+            {"name": "Harvard Nutrition Source", "url": "https://www.hsph.harvard.edu/nutritionsource/feed/", "category": "nutrition_science"},
+            {"name": "The Conversation Health", "url": "https://theconversation.com/global/health/articles.atom", "category": "health_education"},
+            {"name": "Food Navigator", "url": "https://www.foodnavigator.com/rssfeed/latest", "category": "food_industry"},
+            {"name": "Food Navigator USA", "url": "https://www.foodnavigator-usa.com/rssfeed/latest", "category": "food_industry"},
+            
+            # 🌾 Agriculture & Food Policy Sources
+            {"name": "AgFunder News", "url": "https://agfundernews.com/feed/", "category": "agriculture_tech"},
+            {"name": "Civil Eats", "url": "https://civileats.com/feed/", "category": "food_systems"},
+            {"name": "FAO News", "url": "https://www.fao.org/news/rss-feed/en/", "category": "global_food_security"},
+            
+            # 🌫️ Environment & Pollution Sources
+            {"name": "Environmental Health News", "url": "https://www.ehn.org/rss.xml", "category": "environmental_health"},
+            {"name": "Inside Climate News", "url": "https://insideclimatenews.org/feed/", "category": "climate_health"},
+            {"name": "National Geographic Environment", "url": "https://www.nationalgeographic.com/pages/topic/planet-possible/feed/", "category": "environmental_science"},
+            
+            # 💡 Academic & Research Aggregators
+            {"name": "EurekAlert Health", "url": "https://www.eurekalert.org/rss/health_medicine.xml", "category": "academic_research"},
+            {"name": "EurekAlert Environment", "url": "https://www.eurekalert.org/rss/environment.xml", "category": "environmental_research"},
+            {"name": "Reuters Health", "url": "https://www.reuters.com/rss/healthNews", "category": "health_news"},
+            
+            # Specialized Metabolic Health Sources
+            {"name": "Diabetes Research News", "url": "https://www.sciencedaily.com/rss/health_medicine/diabetes.xml", "category": "diabetes_research"},
+            {"name": "Obesity Research News", "url": "https://www.sciencedaily.com/rss/health_medicine/obesity.xml", "category": "obesity_research"},
+            {"name": "Nutrition Research News", "url": "https://www.sciencedaily.com/rss/health_medicine/nutrition.xml", "category": "nutrition_research"},
         ]
 
     def init_database(self):
@@ -318,8 +368,66 @@ class MasterHealthScraper:
         
         return articles
 
+    def scrape_pubmed_feeds(self) -> List[Dict]:
+        """Scrape PubMed RSS feeds for latest research"""
+        articles = []
+        
+        # Skip PubMed if feedparser is not available
+        if not FEEDPARSER_AVAILABLE:
+            logger.info("Skipping PubMed scraping (feedparser not available in Python 3.13)")
+            return articles
+        
+        # PubMed RSS feeds for specific metabolic health topics
+        pubmed_feeds = [
+            {
+                "name": "PubMed Metabolic Syndrome",
+                "url": "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/erss.cgi?rss_guid=1KXlwj8Ls4zOSKM-U0RNHwm3QwB5UHWGCJ6aBZBmQ",
+                "category": "academic_research"
+            },
+            {
+                "name": "PubMed Diabetes Research", 
+                "url": "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/erss.cgi?rss_guid=1qGz5uaLs4zPTKN-V1SMIxn4RxC6VIGDDK7bCaDnR",
+                "category": "academic_research"
+            },
+            {
+                "name": "PubMed Obesity Research",
+                "url": "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/erss.cgi?rss_guid=1rHz6vbMs5zQULO-W2TNJyo5SyD7WJHEEL8cDbEoS",
+                "category": "academic_research"
+            }
+        ]
+        
+        for feed_info in pubmed_feeds:
+            try:
+                logger.info(f"Scraping {feed_info['name']}...")
+                
+                # Use a more permissive timeout for academic sources
+                import socket
+                old_timeout = socket.getdefaulttimeout()
+                socket.setdefaulttimeout(20)
+                
+                feed = feedparser.parse(feed_info['url'])
+                
+                # Restore original timeout
+                socket.setdefaulttimeout(old_timeout)
+                
+                for entry in feed.entries[:10]:  # 10 research articles per feed
+                    article = self._parse_rss_entry(entry, feed_info)
+                    if article:
+                        # Mark as academic research
+                        article['tags'] = f"{article['tags']},academic research,pubmed" if article['tags'] else "academic research,pubmed"
+                        articles.append(article)
+                
+                time.sleep(2)  # Respectful rate limiting for academic sources
+                
+            except Exception as e:
+                logger.debug(f"PubMed feed {feed_info['name']} unavailable: {e}")
+        
+        if articles:
+            logger.info(f"✅ PubMed: Found {len(articles)} research articles")
+        return articles
+
     def scrape_google_news(self) -> List[Dict]:
-        """Scrape Google News for health topics"""
+        """Scrape Google News for health topics with enhanced metabolic health focus"""
         articles = []
         
         # Skip Google News if feedparser is not available
@@ -327,19 +435,34 @@ class MasterHealthScraper:
             logger.info("Skipping Google News scraping (feedparser not available in Python 3.13)")
             return articles
         
-        for keyword in self.health_keywords[:5]:  # Reduced keywords for faster processing
+        # Priority keywords for metabolic health
+        priority_keywords = [
+            "metabolic syndrome", "insulin resistance", "type 2 diabetes", 
+            "obesity epidemic", "processed foods", "gut microbiome",
+            "endocrine disruptors", "food security", "sustainable agriculture"
+        ]
+        
+        # Use priority keywords first, then general health keywords
+        search_keywords = priority_keywords + self.health_keywords[:8]  # Increased to 8 for better coverage
+        
+        for keyword in search_keywords[:12]:  # Process up to 12 keywords total
             try:
                 url = f"https://news.google.com/rss/search?q={quote_plus(keyword)}&hl=en-US&gl=US&ceid=US:en"
                 
                 feed = feedparser.parse(url)
-                for entry in feed.entries[:5]:  # 5 articles per keyword
+                for entry in feed.entries[:4]:  # 4 articles per keyword for balance
                     article = self._parse_rss_entry(entry, {
                         'name': 'Google News',
                         'category': 'health_news'
                     })
                     
                     if article:
-                        article['tags'] = f"{article['tags']},{keyword}" if article['tags'] else keyword
+                        # Add the search keyword as a tag
+                        existing_tags = article.get('tags', '')
+                        if existing_tags:
+                            article['tags'] = f"{existing_tags},{keyword}"
+                        else:
+                            article['tags'] = keyword
                         
                         # Quick URL validation for Google News articles
                         is_valid, validation_info = self._quick_url_validation(article)
@@ -348,11 +471,12 @@ class MasterHealthScraper:
                         else:
                             logger.debug(f"Skipping Google News article with invalid URL: {article.get('url')} - {validation_info.get('error', 'Unknown error')}")
                 
-                time.sleep(1)  # Rate limiting
+                time.sleep(1.5)  # Slightly increased rate limiting for respectful scraping
                 
             except Exception as e:
                 logger.error(f"Failed to scrape Google News for '{keyword}': {e}")
         
+        logger.info(f"✅ Google News: Found {len(articles)} articles from {len(search_keywords)} keyword searches")
         return articles
 
     def _parse_date(self, date_str: str) -> str:
@@ -463,24 +587,55 @@ class MasterHealthScraper:
             return False, {"error": f"URL parsing failed: {e}", "status": "invalid"}
 
     def _generate_tags(self, title: str, description: str, category: str) -> str:
-        """Generate relevant tags for the article"""
+        """Generate relevant tags for the article with enhanced metabolic health focus"""
         tags = [category]
         
         text = f"{title} {description}".lower()
         
-        # Health-related tag mapping
+        # Enhanced health-related tag mapping for metabolic health focus
         tag_keywords = {
-            'diabetes': ['diabetes', 'blood sugar', 'insulin', 'glucose'],
-            'nutrition': ['nutrition', 'diet', 'food', 'eating', 'vitamin'],
-            'fitness': ['fitness', 'exercise', 'workout', 'physical activity'],
-            'mental_health': ['mental health', 'depression', 'anxiety', 'stress'],
-            'heart_health': ['heart', 'cardiovascular', 'blood pressure', 'cholesterol'],
-            'weight_management': ['weight', 'obesity', 'overweight', 'BMI'],
-            'preventive_care': ['prevention', 'screening', 'early detection'],
-            'lifestyle': ['lifestyle', 'wellness', 'healthy living'],
-            'women_health': ['women', 'pregnancy', 'maternal'],
-            'men_health': ['men', 'prostate', 'testosterone'],
-            'elderly': ['elderly', 'aging', 'senior']
+            # Metabolic Health Core
+            'diabetes': ['diabetes', 'diabetic', 'blood sugar', 'insulin', 'glucose', 'a1c', 'glycemic'],
+            'obesity': ['obesity', 'obese', 'overweight', 'weight loss', 'bariatric', 'bmi', 'adipose'],
+            'metabolic_syndrome': ['metabolic syndrome', 'insulin resistance', 'cardiometabolic', 'syndrome x'],
+            'hypertension': ['hypertension', 'blood pressure', 'high blood pressure', 'systolic', 'diastolic'],
+            'hyperlipidemia': ['cholesterol', 'triglycerides', 'ldl', 'hdl', 'lipids', 'dyslipidemia'],
+            
+            # Nutrition & Diet
+            'nutrition': ['nutrition', 'nutritional', 'diet', 'dietary', 'food', 'eating', 'meal'],
+            'processed_foods': ['processed food', 'ultra-processed', 'packaged food', 'junk food', 'fast food'],
+            'sugar': ['sugar', 'fructose', 'glucose', 'sweetener', 'high fructose corn syrup', 'sucrose'],
+            'micronutrients': ['vitamin', 'mineral', 'micronutrient', 'deficiency', 'supplement'],
+            'gut_health': ['gut', 'microbiome', 'probiotic', 'prebiotic', 'digestive', 'intestinal'],
+            
+            # Lifestyle & Prevention
+            'fitness': ['fitness', 'exercise', 'workout', 'physical activity', 'training', 'gym'],
+            'weight_management': ['weight management', 'weight loss', 'weight gain', 'calorie', 'portion'],
+            'preventive_care': ['prevention', 'preventive', 'screening', 'early detection', 'checkup'],
+            'lifestyle': ['lifestyle', 'wellness', 'healthy living', 'behavior', 'habit'],
+            'sleep': ['sleep', 'insomnia', 'sleep quality', 'circadian', 'melatonin', 'rest'],
+            
+            # Environmental Health
+            'environmental_toxins': ['pollution', 'toxin', 'chemical', 'pesticide', 'herbicide', 'contamination'],
+            'endocrine_disruptors': ['endocrine disruptor', 'hormone disruptor', 'bpa', 'phthalate'],
+            'air_pollution': ['air pollution', 'smog', 'particulate matter', 'pm2.5', 'ozone'],
+            'water_pollution': ['water pollution', 'contaminated water', 'heavy metal', 'microplastic'],
+            
+            # Agriculture & Food Systems
+            'organic_farming': ['organic', 'organic farming', 'sustainable agriculture', 'pesticide-free'],
+            'gmos': ['gmo', 'genetically modified', 'genetic engineering', 'bioengineered'],
+            'food_security': ['food security', 'food insecurity', 'hunger', 'malnutrition'],
+            'soil_health': ['soil', 'soil health', 'soil degradation', 'erosion', 'topsoil'],
+            
+            # Broader Health Categories
+            'mental_health': ['mental health', 'depression', 'anxiety', 'stress', 'mood', 'psychological'],
+            'heart_health': ['heart', 'cardiac', 'cardiovascular', 'coronary', 'angina', 'stroke'],
+            'inflammation': ['inflammation', 'inflammatory', 'chronic inflammation', 'immune response'],
+            'hormone_health': ['hormone', 'hormonal', 'endocrine', 'thyroid', 'adrenal', 'testosterone', 'estrogen'],
+            'women_health': ['women', 'female', 'pregnancy', 'maternal', 'menopause', 'gynecology'],
+            'men_health': ['men', 'male', 'prostate', 'testosterone', 'andrology'],
+            'elderly': ['elderly', 'aging', 'senior', 'geriatric', 'age-related'],
+            'children': ['children', 'child', 'pediatric', 'infant', 'adolescent', 'teen']
         }
         
         for tag, keywords in tag_keywords.items():
@@ -496,21 +651,22 @@ class MasterHealthScraper:
         with sqlite3.connect(DB_PATH) as conn:
             for article in articles:
                 try:
+                    # Use explicit column names that match the database schema exactly
                     conn.execute("""
                         INSERT OR IGNORE INTO articles 
-                        (title, summary, url, date, source, categories, subcategory, tags, url_health, authors)
+                        (date, title, authors, summary, url, categories, tags, source, subcategory, url_health)
                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """, (
-                        article['title'],
-                        article['summary'],  # Changed from 'description' to 'summary'
-                        article['url'],
                         article['published_date'],  # Maps to 'date' column
-                        article['source'],
+                        article['title'],
+                        article.get('author', ''),  # Maps to 'authors' column
+                        article['summary'],  # Maps to 'summary' column
+                        article['url'],
                         article['category'],  # Maps to 'categories' column
-                        article.get('subcategory', ''),  # Add subcategory
                         article['tags'],
-                        article.get('image_url', ''),  # Maps to 'url_health' column for images
-                        article.get('author', '')  # Maps to 'authors' column
+                        article['source'],
+                        article.get('subcategory', ''),  # Maps to 'subcategory' column
+                        article.get('image_url', '')  # Maps to 'url_health' column for images
                     ))
                     
                     if conn.total_changes > 0:
@@ -524,35 +680,47 @@ class MasterHealthScraper:
         return saved_count
 
     def run_scraping(self) -> Dict:
-        """Run complete scraping process"""
-        logger.info("🚀 Starting Master Health Scraper...")
+        """Run complete scraping process with enhanced sources"""
+        logger.info("🚀 Starting Enhanced Master Health Scraper...")
+        logger.info(f"📊 Processing {len(self.rss_sources)} RSS sources + Google News + PubMed feeds")
         
         # Initialize database
         self.init_database()
         
         all_articles = []
         
-        # Scrape RSS sources (optimized for speed)
+        # Scrape RSS sources (comprehensive list)
+        logger.info("📰 Scraping RSS news sources...")
         for source in self.rss_sources:
             articles = self.scrape_rss_source(source)
             all_articles.extend(articles)
-            time.sleep(0.5)  # Reduced delay for faster scraping
+            time.sleep(0.5)  # Rate limiting between sources
         
         # Scrape Google News
+        logger.info("🔍 Scraping Google News...")
         google_articles = self.scrape_google_news()
         all_articles.extend(google_articles)
         
+        # Scrape PubMed research feeds
+        logger.info("🧬 Scraping PubMed research feeds...")
+        pubmed_articles = self.scrape_pubmed_feeds()
+        all_articles.extend(pubmed_articles)
+        
         # Save to database
+        logger.info("💾 Saving articles to database...")
         saved_count = self.save_articles(all_articles)
         
         result = {
             'total_scraped': len(all_articles),
             'total_saved': saved_count,
-            'sources_processed': len(self.rss_sources) + 1,  # +1 for Google News
+            'sources_processed': len(self.rss_sources) + 2,  # +2 for Google News and PubMed
+            'rss_sources': len(self.rss_sources),
+            'google_news_enabled': FEEDPARSER_AVAILABLE,
+            'pubmed_enabled': FEEDPARSER_AVAILABLE,
             'timestamp': datetime.now().isoformat()
         }
         
-        logger.info(f"✅ Scraping completed: {saved_count}/{len(all_articles)} articles saved")
+        logger.info(f"✅ Enhanced scraping completed: {saved_count}/{len(all_articles)} articles saved")
         return result
 
 def main():
@@ -560,14 +728,23 @@ def main():
     scraper = MasterHealthScraper()
     result = scraper.run_scraping()
     
-    print("\n" + "="*60)
-    print("🏥 MASTER HEALTH SCRAPER - RESULTS")
-    print("="*60)
+    print("\n" + "="*70)
+    print("🏥 ENHANCED MASTER HEALTH SCRAPER - RESULTS")
+    print("="*70)
     print(f"📊 Total Articles Scraped: {result['total_scraped']}")
     print(f"💾 Articles Saved to Database: {result['total_saved']}")
-    print(f"🌐 Sources Processed: {result['sources_processed']}")
+    print(f"🌐 Total Sources Processed: {result['sources_processed']}")
+    print(f"   └── RSS News Sources: {result['rss_sources']}")
+    print(f"   └── Google News: {'✅ Enabled' if result['google_news_enabled'] else '❌ Disabled (Python 3.13)'}")
+    print(f"   └── PubMed Research: {'✅ Enabled' if result['pubmed_enabled'] else '❌ Disabled (Python 3.13)'}")
     print(f"⏰ Completed at: {result['timestamp']}")
-    print("="*60)
+    print("\n🎯 Enhanced Coverage Areas:")
+    print("   • 🧬 Medical & Scientific Research")
+    print("   • 🥗 Nutrition & Food Science") 
+    print("   • 🌾 Agriculture & Food Policy")
+    print("   • 🌫️ Environmental Health & Pollution")
+    print("   • 💡 Academic Research (PubMed)")
+    print("="*70)
     
     return result
 
