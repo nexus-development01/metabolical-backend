@@ -8,6 +8,7 @@ import json
 import threading
 import re
 import html
+import os
 from typing import List, Dict, Optional, Tuple
 from datetime import datetime, timedelta
 from functools import lru_cache
@@ -30,12 +31,62 @@ except ImportError:
     from metabolic_filter import filter_and_deduplicate_articles, metabolic_filter
     from config import config
 
-# Database path - adjusted for new structure
-DB_PATH = str(Path(__file__).parent.parent / "data" / "articles.db")
+# Database path - robust configuration for both local and container environments
+def get_database_path():
+    """Get the database path with proper fallbacks for different environments"""
+    
+    # Check for environment variable override first
+    env_db_path = os.getenv('DATABASE_PATH')
+    if env_db_path:
+        env_path = Path(env_db_path)
+        if env_path.exists() or env_path.parent.exists():
+            logger.info(f"📂 Using environment database path: {env_path}")
+            env_path.parent.mkdir(parents=True, exist_ok=True)
+            return str(env_path)
+    
+    # First try: data directory (new structure)
+    data_path = Path(__file__).parent.parent / "data" / "articles.db"
+    
+    # Second try: legacy db directory
+    legacy_path = Path(__file__).parent.parent / "db" / "articles.db"
+    
+    # Third try: current directory (for container environments)
+    current_dir_path = Path("data") / "articles.db"
+    
+    # Fourth try: absolute container path
+    container_path = Path("/app/data/articles.db")
+    
+    paths_to_try = [data_path, legacy_path, current_dir_path, container_path]
+    
+    for path in paths_to_try:
+        if path.exists():
+            logger.info(f"📂 Database found at: {path}")
+            return str(path)
+    
+    # If no database exists, create one in the most appropriate location
+    # Prefer data directory structure
+    if data_path.parent.exists() or data_path.parent.is_dir():
+        # data directory exists, use it
+        data_path.parent.mkdir(parents=True, exist_ok=True)
+        logger.info(f"📂 Creating new database at: {data_path}")
+        return str(data_path)
+    elif current_dir_path.parent.exists() or Path("data").exists():
+        # Current directory data folder exists
+        current_dir_path.parent.mkdir(parents=True, exist_ok=True)
+        logger.info(f"📂 Creating new database at: {current_dir_path}")
+        return str(current_dir_path)
+    elif container_path.parent.exists():
+        # Container environment
+        container_path.parent.mkdir(parents=True, exist_ok=True)
+        logger.info(f"📂 Creating new database at: {container_path}")
+        return str(container_path)
+    else:
+        # Last resort: use data_path and create directories
+        data_path.parent.mkdir(parents=True, exist_ok=True)
+        logger.info(f"📂 Creating new database with directories at: {data_path}")
+        return str(data_path)
 
-# Fallback to old path if new doesn't exist
-if not Path(DB_PATH).exists():
-    DB_PATH = str(Path(__file__).parent.parent / "db" / "articles.db")
+DB_PATH = get_database_path()
 
 # Category keywords file path - updated to use new unified config
 CATEGORY_YAML_PATH = Path(__file__).parent / "health_categories.yml"
@@ -308,16 +359,39 @@ class SQLiteConnectionPool:
         
     @contextmanager
     def get_connection(self):
-        conn = sqlite3.connect(self.database, timeout=30.0, check_same_thread=False)
-        conn.execute("PRAGMA journal_mode=WAL")
-        conn.execute("PRAGMA synchronous=NORMAL")
-        conn.execute("PRAGMA cache_size=10000")
-        conn.row_factory = sqlite3.Row  # Enable column access by name
-        
+        """Get a database connection with proper error handling"""
+        conn = None
         try:
+            # Ensure database directory exists
+            db_path = Path(self.database)
+            db_path.parent.mkdir(parents=True, exist_ok=True)
+            
+            conn = sqlite3.connect(self.database, timeout=30.0, check_same_thread=False)
+            conn.execute("PRAGMA journal_mode=WAL")
+            conn.execute("PRAGMA synchronous=NORMAL")
+            conn.execute("PRAGMA cache_size=10000")
+            conn.row_factory = sqlite3.Row  # Enable column access by name
+            
             yield conn
+        except sqlite3.OperationalError as e:
+            if "unable to open database file" in str(e):
+                logger.error(f"❌ Cannot access database at {self.database}. Checking permissions and path...")
+                # Try to create the directory and file
+                try:
+                    db_path = Path(self.database)
+                    db_path.parent.mkdir(parents=True, exist_ok=True)
+                    # Touch the file to create it
+                    db_path.touch(exist_ok=True)
+                    logger.info(f"✅ Created database file at {self.database}")
+                except Exception as create_error:
+                    logger.error(f"❌ Cannot create database file: {create_error}")
+            raise e
+        except Exception as e:
+            logger.error(f"❌ Database connection error: {e}")
+            raise e
         finally:
-            conn.close()
+            if conn:
+                conn.close()
 
 # Global connection pool
 connection_pool = SQLiteConnectionPool(DB_PATH)
@@ -1069,10 +1143,32 @@ def get_articles_by_ids(article_ids: List[int]) -> List[Dict]:
         return []
 
 def initialize_optimizations():
-    """Initialize database optimizations"""
+    """Initialize database optimizations and create tables if needed"""
     try:
+        # Ensure database directory exists
+        db_dir = Path(DB_PATH).parent
+        db_dir.mkdir(parents=True, exist_ok=True)
+        
         with connection_pool.get_connection() as conn:
             cursor = conn.cursor()
+            
+            # Create articles table if it doesn't exist
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS articles (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    title TEXT NOT NULL,
+                    summary TEXT,
+                    content TEXT,
+                    url TEXT UNIQUE,
+                    source TEXT,
+                    date TEXT,
+                    categories TEXT,
+                    tags TEXT,
+                    authors TEXT,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            ''')
             
             # Create indexes if they don't exist
             indexes = [
@@ -1080,16 +1176,60 @@ def initialize_optimizations():
                 "CREATE INDEX IF NOT EXISTS idx_articles_categories ON articles(categories)",
                 "CREATE INDEX IF NOT EXISTS idx_articles_source ON articles(source)",
                 "CREATE INDEX IF NOT EXISTS idx_articles_title ON articles(title)",
+                "CREATE INDEX IF NOT EXISTS idx_articles_url ON articles(url)",
+                "CREATE INDEX IF NOT EXISTS idx_articles_tags ON articles(tags)",
             ]
             
             for index_sql in indexes:
                 cursor.execute(index_sql)
                 
             conn.commit()
-            logger.info("Database indexes initialized successfully")
+            logger.info(f"✅ Database initialized successfully at: {DB_PATH}")
+            
+            # Check if database has articles
+            cursor.execute("SELECT COUNT(*) FROM articles")
+            article_count = cursor.fetchone()[0]
+            logger.info(f"📊 Database contains {article_count} articles")
             
     except Exception as e:
-        logger.error(f"Error initializing optimizations: {e}")
+        logger.error(f"❌ Error initializing database: {e}")
+        # Try to create a minimal database in a temporary location
+        try:
+            temp_db_path = "/tmp/articles.db" if Path("/tmp").exists() else "articles.db"
+            # Update module-level DB_PATH
+            import sys
+            current_module = sys.modules[__name__]
+            current_module.DB_PATH = temp_db_path
+            logger.warning(f"🔄 Falling back to temporary database: {temp_db_path}")
+            
+            # Reinitialize connection pool with new path
+            import sys
+            current_module = sys.modules[__name__]
+            current_module.connection_pool = SQLiteConnectionPool(temp_db_path)
+            
+            # Try again with temporary database
+            with current_module.connection_pool.get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute('''
+                    CREATE TABLE IF NOT EXISTS articles (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        title TEXT NOT NULL,
+                        summary TEXT,
+                        content TEXT,
+                        url TEXT UNIQUE,
+                        source TEXT,
+                        date TEXT,
+                        categories TEXT,
+                        tags TEXT,
+                        authors TEXT,
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    )
+                ''')
+                conn.commit()
+                logger.info(f"✅ Temporary database created successfully at: {temp_db_path}")
+        except Exception as temp_error:
+            logger.error(f"❌ Failed to create temporary database: {temp_error}")
 
 def get_all_tags() -> List[str]:
     """Get all unique tags from the database"""
@@ -1195,8 +1335,15 @@ def get_api_statistics() -> Dict:
 
 # Initialize on import
 try:
+    logger.info(f"🔧 Initializing database at: {DB_PATH}")
+    
+    # Initialize database and optimizations
     initialize_optimizations()
+    
     # Pre-load categories
     get_cached_category_keywords()
+    
+    logger.info("✅ Metabolical Backend utilities initialized successfully")
 except Exception as e:
-    logger.warning(f"Could not initialize optimizations: {e}")
+    logger.warning(f"⚠️ Could not fully initialize optimizations: {e}")
+    logger.info("🔄 Application will continue with basic functionality")

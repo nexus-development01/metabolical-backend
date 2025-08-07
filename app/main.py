@@ -45,7 +45,24 @@ async def startup_event():
     """Initialize the application and start background scheduler"""
     logger.info("🚀 Starting Metabolical Backend API...")
     
-    # Start the background schedulaer
+    # Check database initialization
+    try:
+        article_count = get_total_articles_count()
+        logger.info(f"📊 Database initialized with {article_count} articles")
+        
+        if article_count == 0:
+            logger.warning("⚠️ Database is empty - consider running database seeding")
+            
+    except Exception as e:
+        logger.error(f"❌ Database initialization check failed: {e}")
+        logger.info("🔧 Attempting to reinitialize database...")
+        try:
+            initialize_optimizations()
+            logger.info("✅ Database reinitialized successfully")
+        except Exception as reinit_error:
+            logger.error(f"❌ Database reinitialization failed: {reinit_error}")
+    
+    # Start the background scheduler
     try:
         health_scheduler.start_scheduler()
         logger.info("✅ Background scheduler started successfully")
@@ -450,6 +467,73 @@ def health_check():
                 "error": str(e)
             }
         )
+
+@v1_router.get("/debug/database")
+def debug_database():
+    """Database debug information for troubleshooting"""
+    import os
+    from pathlib import Path
+    
+    debug_info = {
+        "timestamp": datetime.now().isoformat(),
+        "database_path": DB_PATH,
+        "database_exists": Path(DB_PATH).exists(),
+        "database_size": 0,
+        "database_readable": False,
+        "database_writable": False,
+        "parent_directory_exists": Path(DB_PATH).parent.exists(),
+        "parent_directory_writable": False,
+        "current_working_directory": os.getcwd(),
+        "app_directory": str(Path(__file__).parent.parent),
+        "user_permissions": {},
+        "environment_vars": {},
+        "connection_test": "not_attempted"
+    }
+    
+    try:
+        # Check database file
+        db_path = Path(DB_PATH)
+        if db_path.exists():
+            debug_info["database_size"] = db_path.stat().st_size
+            debug_info["database_readable"] = os.access(DB_PATH, os.R_OK)
+            debug_info["database_writable"] = os.access(DB_PATH, os.W_OK)
+        
+        # Check parent directory
+        parent_dir = db_path.parent
+        if parent_dir.exists():
+            debug_info["parent_directory_writable"] = os.access(parent_dir, os.W_OK)
+        
+        # User and process info
+        debug_info["user_permissions"] = {
+            "effective_user_id": os.geteuid() if hasattr(os, 'geteuid') else "N/A",
+            "effective_group_id": os.getegid() if hasattr(os, 'getegid') else "N/A",
+            "process_id": os.getpid()
+        }
+        
+        # Environment variables
+        debug_info["environment_vars"] = {
+            "DATABASE_PATH": os.getenv("DATABASE_PATH"),
+            "PYTHONPATH": os.getenv("PYTHONPATH"),
+            "RENDER": os.getenv("RENDER"),
+            "PORT": os.getenv("PORT")
+        }
+        
+        # Test database connection
+        try:
+            with connection_pool.get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute("SELECT COUNT(*) FROM articles")
+                count = cursor.fetchone()[0]
+                debug_info["connection_test"] = "success"
+                debug_info["article_count"] = count
+        except Exception as conn_error:
+            debug_info["connection_test"] = f"failed: {str(conn_error)}"
+            debug_info["article_count"] = 0
+            
+    except Exception as e:
+        debug_info["error"] = str(e)
+    
+    return debug_info
 
 @v1_router.get("/cors-info")
 def get_cors_info():

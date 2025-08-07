@@ -28,6 +28,12 @@ RUN pip install --no-cache-dir --upgrade pip \
 # Copy application code
 COPY . .
 
+# Create data directory for database and ensure proper permissions
+RUN mkdir -p /app/data && chmod 755 /app/data
+
+# Initialize database with sample data (run as root before switching to appuser)
+RUN python seed_database.py || echo "Database seeding failed, will initialize at runtime"
+
 # Create non-root user for security
 RUN adduser --disabled-password --gecos '' appuser \
     && chown -R appuser:appuser /app
