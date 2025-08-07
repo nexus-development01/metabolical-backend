@@ -117,6 +117,9 @@ def get_cors_origins() -> List[str]:
             # "http://127.0.0.1:5173",
             "https://metabolical.in",
             "https://www.metabolical.in",
+            "http://192.168.1.153:5173",
+            # "http://localhost:5173",
+
             # "http://127.0.0.1:4200"
         ]
         logger.info(f"Development mode: Using permissive CORS origins: {origins}")
@@ -125,7 +128,8 @@ def get_cors_origins() -> List[str]:
     # Production CORS origins - only allow your specific frontend domains
     origins = [
         "https://metabolical.in",
-        "https://www.metabolical.in"
+        "https://www.metabolical.in",
+        "http://192.168.1.153:5173",
     ]
     
     logger.info(f"Production mode: Using restricted CORS origins: {origins}")
