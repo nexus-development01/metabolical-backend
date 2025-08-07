@@ -5,6 +5,7 @@ Simple runner script for METABOLIC_BACKEND
 
 import sys
 import subprocess
+import asyncio
 from pathlib import Path
 
 def run_api():
@@ -24,14 +25,55 @@ def run_scraper():
     subprocess.run([sys.executable, "app/scrapers/master_health_scraper.py"])
 
 def clean_database():
-    """Run database cleanup"""
+    """Run database cleanup using scheduler's cleanup function"""
     print("🧹 Cleaning database...")
-    subprocess.run([sys.executable, "scripts/cleanup_urls.py"])
+    try:
+        # Import and run the cleanup function from the scheduler
+        import asyncio
+        from app.scheduler import HealthNewsScheduler
+        
+        async def run_cleanup():
+            scheduler = HealthNewsScheduler()
+            await scheduler.cleanup_database()
+        
+        asyncio.run(run_cleanup())
+        print("✅ Database cleanup completed")
+    except Exception as e:
+        print(f"❌ Database cleanup failed: {e}")
 
-def check_urls():
-    """Check URL status"""
-    print("🔍 Checking URLs...")
-    subprocess.run([sys.executable, "scripts/check_urls.py"])
+def check_database():
+    """Check database status and article counts"""
+    print("🔍 Checking database status...")
+    try:
+        from app.utils import get_total_articles_count
+        import sqlite3
+        from pathlib import Path
+        
+        # Get article count
+        count = get_total_articles_count()
+        print(f"📊 Total articles in database: {count}")
+        
+        # Check database file
+        db_path = Path("data/articles.db")
+        if db_path.exists():
+            size_mb = db_path.stat().st_size / (1024 * 1024)
+            print(f"💾 Database file size: {size_mb:.2f} MB")
+        else:
+            print("⚠️ Database file not found")
+            
+        # Check recent articles
+        with sqlite3.connect(db_path) as conn:
+            cursor = conn.execute("""
+                SELECT COUNT(*) FROM articles 
+                WHERE date >= datetime('now', '-7 days')
+            """)
+            recent_count = cursor.fetchone()[0]
+            print(f"📅 Articles from last 7 days: {recent_count}")
+            
+        print("✅ Database check completed")
+        
+    except Exception as e:
+        print(f"❌ Database check failed: {e}")
 
 def show_help():
     """Show available commands"""
@@ -40,8 +82,8 @@ def show_help():
 
   api         Start the FastAPI server
   scraper     Run the health news scraper  
-  clean       Clean up problematic URLs from database
-  check       Check URL status in database
+  clean       Clean up old articles from database
+  check       Check database status and article counts
   help        Show this help message
 
 Usage:
@@ -51,6 +93,7 @@ Examples:
   python run.py api
   python run.py scraper
   python run.py clean
+  python run.py check
 """)
 
 if __name__ == "__main__":
@@ -67,7 +110,7 @@ if __name__ == "__main__":
     elif command == "clean":
         clean_database()
     elif command == "check":
-        check_urls()
+        check_database()
     elif command == "help":
         show_help()
     else:

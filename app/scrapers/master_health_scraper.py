@@ -23,7 +23,7 @@ import re
 import time
 import logging
 from datetime import datetime, timedelta
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Tuple
 from urllib.parse import urljoin, urlparse, quote_plus
 
 # Handle Python 3.13 compatibility
@@ -43,14 +43,22 @@ from bs4 import BeautifulSoup
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 sys.path.append(str(BASE_DIR))
 
-# Import our URL validator
+# Import our URL validator and categorizer
 try:
     sys.path.insert(0, str(BASE_DIR))
     from app.url_validator import URLValidator
+    from app.categorizer import health_categorizer
 except ImportError:
     class URLValidator:
         def validate_article_url(self, article):
             return True, {"status": "valid"}
+    
+    # Fallback categorizer if import fails
+    class FallbackCategorizer:
+        def categorize_article(self, title, summary, source_category=None):
+            return "news", "general"
+    
+    health_categorizer = FallbackCategorizer()
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)
@@ -78,7 +86,7 @@ class MasterHealthScraper:
             "public health", "food safety", "sleep disorder", "immunity", "preventive care"
         ]
         
-        # Unified RSS sources - Comprehensive verified working URLs
+        # Unified RSS sources - Optimized list (verified working URLs)
         self.rss_sources = [
             # Major News Outlets - Health Sections (Verified Working)
             {"name": "BBC Health", "url": "http://feeds.bbci.co.uk/news/health/rss.xml", "category": "health_news"},
@@ -86,23 +94,14 @@ class MasterHealthScraper:
             {"name": "CNN Health", "url": "http://rss.cnn.com/rss/edition.rss", "category": "health_news"},
             {"name": "NPR Health", "url": "https://feeds.npr.org/1001/rss.xml", "category": "health_news"},
             
-            # Medical and Health Information Sources - Enhanced
-            {"name": "WebMD Breaking News", "url": "https://www.webmd.com/rss/news_breaking.xml", "category": "health_info"},
+            # Medical and Health Information Sources - Fast loading
             {"name": "Medical News Today", "url": "https://www.medicalnewstoday.com/rss", "category": "health_info"},
             {"name": "Healthline News", "url": "https://www.healthline.com/rss", "category": "health_info"},
-            {"name": "Mayo Clinic", "url": "https://www.mayoclinic.org/rss", "category": "medical_advice"},
             {"name": "Medical Xpress", "url": "https://medicalxpress.com/rss-feed/", "category": "medical_research"},
             {"name": "ScienceDaily Health", "url": "https://www.sciencedaily.com/rss/health_medicine.xml", "category": "medical_research"},
             
-            # Government and Official Sources
+            # Government sources (verified working)
             {"name": "NIH News Releases", "url": "https://www.nih.gov/news-events/news-releases/feed", "category": "medical_research"},
-            {"name": "World Health Organization", "url": "https://www.who.int/feeds/entity/mediacentre/news/en/rss.xml", "category": "public_health"},
-            {"name": "CDC Newsroom", "url": "https://www.cdc.gov/media/rss.htm", "category": "public_health"},
-            
-            # Additional Professional Sources
-            {"name": "PubMed Central", "url": "https://www.ncbi.nlm.nih.gov/pmc/rss/current/", "category": "medical_research"},
-            {"name": "Medical News Net", "url": "https://www.news-medical.net/health/rss", "category": "health_info"},
-            {"name": "Medscape News", "url": "https://www.medscape.com/rss/allnews", "category": "medical_research"},
         ]
 
     def init_database(self):
@@ -133,25 +132,34 @@ class MasterHealthScraper:
             conn.commit()
 
     def scrape_rss_source(self, source: Dict) -> List[Dict]:
-        """Scrape a single RSS source with enhanced error handling"""
+        """Scrape a single RSS source with enhanced error handling and performance optimization"""
         articles = []
         try:
             logger.info(f"Scraping {source['name']}...")
             
-            # Try feedparser first (if available)
+            # Try feedparser first (if available) with timeout
             if FEEDPARSER_AVAILABLE:
                 try:
+                    # Set socket timeout for feedparser
+                    import socket
+                    old_timeout = socket.getdefaulttimeout()
+                    socket.setdefaulttimeout(15)
+                    
                     feed = feedparser.parse(source['url'])
+                    
+                    # Restore original timeout
+                    socket.setdefaulttimeout(old_timeout)
+                    
                     if not feed.entries:
                         raise Exception("No entries found")
                         
-                    for entry in feed.entries[:20]:  # Limit to 20 articles per source
+                    for entry in feed.entries[:15]:  # Reduced to 15 articles per source for speed
                         article = self._parse_rss_entry(entry, source)
                         if article:
                             articles.append(article)
                             
                 except Exception as e:
-                    logger.warning(f"Feedparser failed for {source['name']}: {e}, trying manual parsing")
+                    logger.debug(f"Feedparser failed for {source['name']}: {e}, trying manual parsing")
                     articles.extend(self._manual_rss_parse(source))
             else:
                 # Use manual parsing when feedparser is not available (Python 3.13)
@@ -191,6 +199,13 @@ class MasterHealthScraper:
             # Get image URL
             image_url = self._extract_image_from_entry(entry)
             
+            # Use intelligent categorizer to get main category and subcategory
+            main_category, subcategory = health_categorizer.categorize_article(
+                title, 
+                self._clean_html(description), 
+                source['category']
+            )
+            
             # Create article object
             article = {
                 'title': title,
@@ -198,17 +213,18 @@ class MasterHealthScraper:
                 'url': url,
                 'published_date': published_date,
                 'source': source['name'],
-                'category': source['category'],
+                'category': main_category,  # Use intelligent categorization
+                'subcategory': subcategory,  # Add subcategory
                 'tags': self._generate_tags(title, description, source['category']),
                 'image_url': image_url,
                 'author': getattr(entry, 'author', ''),
                 'read_time': max(3, len(description.split()) // 200)  # Estimate read time
             }
             
-            # Validate URL more strictly
-            is_valid, validation_info = self.url_validator.validate_article_url(article)
+            # Quick URL validation (avoid slow HTTP requests during scraping)
+            is_valid, validation_info = self._quick_url_validation(article)
             if not is_valid:
-                logger.warning(f"Skipping article with invalid URL: {url} - {validation_info.get('error', 'Unknown error')}")
+                logger.debug(f"Skipping article with invalid URL: {url} - {validation_info.get('error', 'Unknown error')}")
                 return None
                 
             return article
@@ -243,7 +259,7 @@ class MasterHealthScraper:
                 item_pattern = r'<entry>(.*?)</entry>'
                 items = re.findall(item_pattern, content, re.DOTALL | re.IGNORECASE)
             
-            for item in items[:20]:  # Limit to 20 articles
+            for item in items[:15]:  # Reduced to 15 articles for speed
                 title_match = re.search(r'<title[^>]*>(.*?)</title>', item, re.DOTALL | re.IGNORECASE)
                 link_match = re.search(r'<link[^>]*>(.*?)</link>', item, re.DOTALL | re.IGNORECASE)
                 desc_match = re.search(r'<description[^>]*>(.*?)</description>', item, re.DOTALL | re.IGNORECASE)
@@ -268,21 +284,29 @@ class MasterHealthScraper:
                     pub_date = self._parse_date(date_match.group(1).strip()) if date_match else datetime.now().isoformat()
                     
                     if title and url:
+                        # Use intelligent categorizer to get main category and subcategory
+                        main_category, subcategory = health_categorizer.categorize_article(
+                            title, 
+                            description, 
+                            source['category']
+                        )
+                        
                         article = {
                             'title': title,
                             'summary': description[:500],
                             'url': url,
                             'published_date': pub_date,
                             'source': source['name'],
-                            'category': source['category'],
+                            'category': main_category,  # Use intelligent categorization
+                            'subcategory': subcategory,  # Add subcategory
                             'tags': self._generate_tags(title, description, source['category']),
                             'image_url': '',
                             'author': '',
                             'read_time': max(3, len(description.split()) // 200)
                         }
                         
-                        # Validate URL before adding
-                        is_valid, validation_info = self.url_validator.validate_article_url(article)
+                        # Quick URL validation (avoid slow HTTP requests during scraping)
+                        is_valid, validation_info = self._quick_url_validation(article)
                         if is_valid:
                             articles.append(article)
                         else:
@@ -303,7 +327,7 @@ class MasterHealthScraper:
             logger.info("Skipping Google News scraping (feedparser not available in Python 3.13)")
             return articles
         
-        for keyword in self.health_keywords[:10]:  # Limit keywords
+        for keyword in self.health_keywords[:5]:  # Reduced keywords for faster processing
             try:
                 url = f"https://news.google.com/rss/search?q={quote_plus(keyword)}&hl=en-US&gl=US&ceid=US:en"
                 
@@ -317,12 +341,12 @@ class MasterHealthScraper:
                     if article:
                         article['tags'] = f"{article['tags']},{keyword}" if article['tags'] else keyword
                         
-                        # Double-check URL validation for Google News articles
-                        is_valid, validation_info = self.url_validator.validate_article_url(article)
+                        # Quick URL validation for Google News articles
+                        is_valid, validation_info = self._quick_url_validation(article)
                         if is_valid:
                             articles.append(article)
                         else:
-                            logger.warning(f"Skipping Google News article with invalid URL: {article.get('url')} - {validation_info.get('error', 'Unknown error')}")
+                            logger.debug(f"Skipping Google News article with invalid URL: {article.get('url')} - {validation_info.get('error', 'Unknown error')}")
                 
                 time.sleep(1)  # Rate limiting
                 
@@ -358,6 +382,10 @@ class MasterHealthScraper:
         if not text:
             return ""
         
+        # Remove CDATA sections
+        if text.startswith('<![CDATA[') and text.endswith(']]>'):
+            text = text[9:-3]
+        
         # Remove HTML tags
         clean = re.sub(r'<[^>]+>', '', text)
         # Replace HTML entities
@@ -384,6 +412,55 @@ class MasterHealthScraper:
                 return img_match.group(1)
         
         return ""
+
+    def _quick_url_validation(self, article: Dict) -> Tuple[bool, Dict]:
+        """
+        Quick URL validation without HTTP requests (for performance during scraping)
+        Only checks URL format and domain patterns - detailed validation can be done later
+        """
+        url = article.get('url', '')
+        
+        if not url:
+            return False, {"error": "No URL provided", "status": "invalid"}
+        
+        try:
+            from urllib.parse import urlparse
+            parsed = urlparse(url)
+            
+            # Basic URL structure validation
+            if not parsed.scheme or not parsed.netloc:
+                return False, {"error": "Invalid URL format", "status": "invalid"}
+            
+            # Check for problematic domains and patterns
+            domain = parsed.netloc.lower()
+            
+            # Reject example domains and test domains
+            invalid_domains = [
+                'example.com', 'example.org', 'example.net',
+                'test.com', 'test.org', 'localhost',
+                'domain.com', 'sample.com', 'dummy.com'
+            ]
+            
+            for invalid_domain in invalid_domains:
+                if invalid_domain in domain:
+                    return False, {"error": f"Invalid domain: {domain}", "status": "invalid"}
+            
+            # Reject problematic URL patterns
+            invalid_patterns = [
+                'javascript:', 'mailto:', 'file:', 'ftp:',
+                '/404', '/error', '/not-found',
+                '?error=', '&error=', '#error'
+            ]
+            
+            for pattern in invalid_patterns:
+                if pattern in url.lower():
+                    return False, {"error": f"Invalid URL pattern: {pattern}", "status": "invalid"}
+            
+            # Accept if it looks like a legitimate news URL
+            return True, {"status": "valid_format"}
+            
+        except Exception as e:
+            return False, {"error": f"URL parsing failed: {e}", "status": "invalid"}
 
     def _generate_tags(self, title: str, description: str, category: str) -> str:
         """Generate relevant tags for the article"""
@@ -421,8 +498,8 @@ class MasterHealthScraper:
                 try:
                     conn.execute("""
                         INSERT OR IGNORE INTO articles 
-                        (title, summary, url, date, source, categories, tags, url_health, authors)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        (title, summary, url, date, source, categories, subcategory, tags, url_health, authors)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """, (
                         article['title'],
                         article['summary'],  # Changed from 'description' to 'summary'
@@ -430,6 +507,7 @@ class MasterHealthScraper:
                         article['published_date'],  # Maps to 'date' column
                         article['source'],
                         article['category'],  # Maps to 'categories' column
+                        article.get('subcategory', ''),  # Add subcategory
                         article['tags'],
                         article.get('image_url', ''),  # Maps to 'url_health' column for images
                         article.get('author', '')  # Maps to 'authors' column
@@ -454,11 +532,11 @@ class MasterHealthScraper:
         
         all_articles = []
         
-        # Scrape RSS sources
+        # Scrape RSS sources (optimized for speed)
         for source in self.rss_sources:
             articles = self.scrape_rss_source(source)
             all_articles.extend(articles)
-            time.sleep(2)  # Rate limiting
+            time.sleep(0.5)  # Reduced delay for faster scraping
         
         # Scrape Google News
         google_articles = self.scrape_google_news()

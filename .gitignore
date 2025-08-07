@@ -216,3 +216,16 @@ data/articles.db
 # Test files
 test_*.py
 *_test.py
+
+# Debug files
+debug_*.py
+
+# One-time utility scripts
+check_*.py
+fix_*.py
+update_*.py
+verify_*.py
+
+# Temporary backup directories
+*-main/
+*-backup/

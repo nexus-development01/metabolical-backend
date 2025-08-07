@@ -74,13 +74,13 @@ class HealthNewsScheduler:
                 
             except ImportError as e:
                 if "cgi" in str(e):
-                    logger.warning("⚠️ Python 3.13 compatibility issue detected, using fallback scraper")
+                    logger.warning("⚠️ Python 3.13 compatibility issue detected, using master scraper in fallback mode")
                     
-                    # Use the compatible scraper as fallback
-                    from app.scrapers.simple_compatible_scraper import SimpleHealthScraper
-                    scraper = SimpleHealthScraper()
+                    # Use the master scraper in fallback mode
+                    from app.scrapers.master_health_scraper import MasterHealthScraper
+                    scraper = MasterHealthScraper()
                     result = scraper.run_scraping()
-                    logger.info(f"✅ Fallback scraping completed: {result.get('saved', 0)} articles saved")
+                    logger.info(f"✅ Fallback scraping completed: {result.get('total_saved', 0)} articles saved")
                     return result
                 else:
                     raise

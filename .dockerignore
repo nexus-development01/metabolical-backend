@@ -98,3 +98,12 @@ htmlcov/
 # Local development
 start.py
 stop.py
+
+# Debug files
+debug_*.py
+
+# One-time utility scripts  
+check_*.py
+fix_*.py
+update_*.py
+verify_*.py
