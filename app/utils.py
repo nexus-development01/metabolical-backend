@@ -959,7 +959,7 @@ def get_articles_paginated_optimized(
             # Get articles
             query = f"""
                 SELECT id, title, summary, NULL as content, url, source, date, categories as category, 
-                       subcategory, tags, NULL as image_url, authors as author 
+                       COALESCE(subcategory, '') as subcategory, tags, NULL as image_url, authors as author 
                 FROM articles 
                 {where_clause} 
                 {order_clause} 
@@ -1391,7 +1391,7 @@ def get_articles_by_ids(article_ids: List[int]) -> List[Dict]:
             placeholders = ','.join(['?'] * len(article_ids))
             query = f"""
                 SELECT id, title, summary, NULL as content, url, source, date, categories as category, 
-                       NULL as subcategory, tags, NULL as image_url, authors as author 
+                       COALESCE(subcategory, '') as subcategory, tags, NULL as image_url, authors as author 
                 FROM articles 
                 WHERE id IN ({placeholders})
                 ORDER BY date DESC
