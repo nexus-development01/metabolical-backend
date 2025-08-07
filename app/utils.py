@@ -9,6 +9,7 @@ import threading
 import re
 import html
 import os
+import sys
 from typing import List, Dict, Optional, Tuple
 from datetime import datetime, timedelta
 from functools import lru_cache
@@ -1457,19 +1458,52 @@ def initialize_optimizations():
             cursor.execute('''
                 CREATE TABLE IF NOT EXISTS articles (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    title TEXT NOT NULL,
-                    summary TEXT,
-                    content TEXT,
-                    url TEXT UNIQUE,
-                    source TEXT,
                     date TEXT,
+                    title TEXT NOT NULL,
+                    authors TEXT,
+                    summary TEXT,
+                    url TEXT UNIQUE NOT NULL,
                     categories TEXT,
                     tags TEXT,
-                    authors TEXT,
+                    source TEXT,
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    priority INTEGER DEFAULT 1,
+                    url_health TEXT,
+                    url_accessible INTEGER DEFAULT 1,
+                    last_checked TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    subcategory TEXT,
+                    news_score REAL DEFAULT 0.0,
+                    trending_score REAL DEFAULT 0.0,
+                    content_quality_score REAL DEFAULT 0.0
                 )
             ''')
+            
+            # Check if subcategory column exists, if not add it
+            try:
+                cursor.execute("SELECT subcategory FROM articles LIMIT 1")
+            except sqlite3.OperationalError as e:
+                if "no such column: subcategory" in str(e):
+                    logger.info("Adding missing subcategory column to articles table")
+                    cursor.execute("ALTER TABLE articles ADD COLUMN subcategory TEXT")
+            
+            # Check if other potentially missing columns exist and add them
+            missing_columns = [
+                ("news_score", "REAL DEFAULT 0.0"),
+                ("trending_score", "REAL DEFAULT 0.0"),
+                ("content_quality_score", "REAL DEFAULT 0.0"),
+                ("url_health", "TEXT"),
+                ("url_accessible", "INTEGER DEFAULT 1"),
+                ("last_checked", "TIMESTAMP DEFAULT CURRENT_TIMESTAMP"),
+                ("priority", "INTEGER DEFAULT 1")
+            ]
+            
+            for column_name, column_def in missing_columns:
+                try:
+                    cursor.execute(f"SELECT {column_name} FROM articles LIMIT 1")
+                except sqlite3.OperationalError as e:
+                    if f"no such column: {column_name}" in str(e):
+                        logger.info(f"Adding missing {column_name} column to articles table")
+                        cursor.execute(f"ALTER TABLE articles ADD COLUMN {column_name} {column_def}")
             
             # Create indexes if they don't exist
             indexes = [
@@ -1514,17 +1548,23 @@ def initialize_optimizations():
                 cursor.execute('''
                     CREATE TABLE IF NOT EXISTS articles (
                         id INTEGER PRIMARY KEY AUTOINCREMENT,
-                        title TEXT NOT NULL,
-                        summary TEXT,
-                        content TEXT,
-                        url TEXT UNIQUE,
-                        source TEXT,
                         date TEXT,
+                        title TEXT NOT NULL,
+                        authors TEXT,
+                        summary TEXT,
+                        url TEXT UNIQUE NOT NULL,
                         categories TEXT,
                         tags TEXT,
-                        authors TEXT,
+                        source TEXT,
                         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                        priority INTEGER DEFAULT 1,
+                        url_health TEXT,
+                        url_accessible INTEGER DEFAULT 1,
+                        last_checked TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        subcategory TEXT,
+                        news_score REAL DEFAULT 0.0,
+                        trending_score REAL DEFAULT 0.0,
+                        content_quality_score REAL DEFAULT 0.0
                     )
                 ''')
                 conn.commit()
