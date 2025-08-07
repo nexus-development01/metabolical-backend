@@ -1,0 +1,30 @@
+# Metabolical Backend - Clean Dependencies
+# Core FastAPI and server
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+
+# Database and data processing (sqlite3 is built into Python, no need to install)
+pydantic==2.5.0
+python-dateutil==2.8.2
+
+# Configuration and utilities
+PyYAML==6.0.1
+
+# HTTP client for testing
+httpx==0.25.2
+
+# Production server enhancements
+gunicorn==21.2.0
+
+# Scheduling and background tasks
+apscheduler==3.10.4
+
+# Web scraping dependencies
+requests==2.31.0
+beautifulsoup4==4.12.2
+feedparser==6.0.10
+lxml==4.9.3
+
+# Development and testing (optional)
+pytest==7.4.3
+pytest-asyncio==0.21.1
