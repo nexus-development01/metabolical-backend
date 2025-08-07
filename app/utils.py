@@ -19,6 +19,16 @@ from pathlib import Path
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+# Import metabolic filter and config
+try:
+    from .metabolic_filter import filter_and_deduplicate_articles, metabolic_filter
+    from .config import config
+except ImportError:
+    import sys
+    sys.path.append(str(Path(__file__).parent))
+    from metabolic_filter import filter_and_deduplicate_articles, metabolic_filter
+    from config import config
+
 # Database path - adjusted for new structure
 DB_PATH = str(Path(__file__).parent.parent / "data" / "articles.db")
 
@@ -772,9 +782,39 @@ def get_articles_paginated_optimized(
                         
                 articles.append(article)
             
+            # METABOLIC HEALTH FILTERING: Apply metabolic health filter and deduplication
+            # Only apply filtering if enabled in configuration
+            if config.is_metabolic_filter_enabled() or config.is_deduplication_enabled():
+                logger.info(f"📋 Raw articles before filtering: {len(articles)}")
+                
+                # Apply filtering based on configuration
+                if config.is_metabolic_filter_enabled() and config.is_deduplication_enabled():
+                    articles = filter_and_deduplicate_articles(articles)
+                    logger.info(f"📋 Articles after metabolic filtering and deduplication: {len(articles)}")
+                elif config.is_metabolic_filter_enabled():
+                    articles = metabolic_filter.filter_articles(articles)
+                    logger.info(f"📋 Articles after metabolic filtering: {len(articles)}")
+                elif config.is_deduplication_enabled():
+                    from .metabolic_filter import article_deduplicator
+                    articles = article_deduplicator.deduplicate_articles(articles)
+                    logger.info(f"📋 Articles after deduplication: {len(articles)}")
+            else:
+                logger.info(f"📋 Filtering disabled - returning {len(articles)} raw articles")
+            
+            # Update total count to reflect filtered results
+            filtered_total = len(articles)
+            
+            # Apply pagination after filtering
+            start_idx = (page - 1) * limit
+            end_idx = start_idx + limit
+            paginated_articles = articles[start_idx:end_idx]
+            
+            # Recalculate pagination info based on filtered results
+            total_pages = (filtered_total + limit - 1) // limit
+            
             return {
-                "articles": articles,
-                "total": total,
+                "articles": paginated_articles,
+                "total": filtered_total,
                 "page": page,
                 "limit": limit,
                 "total_pages": total_pages,

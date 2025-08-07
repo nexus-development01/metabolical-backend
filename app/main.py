@@ -22,11 +22,13 @@ logger = logging.getLogger(__name__)
 try:
     from .utils import *
     from .scheduler import health_scheduler
+    from .config import config
 except ImportError:
     import sys
     sys.path.append(str(Path(__file__).parent))
     from utils import *
     from scheduler import health_scheduler
+    from config import config
 
 # FastAPI app
 app = FastAPI(
@@ -115,8 +117,8 @@ def get_cors_origins() -> List[str]:
         "https://metabolical.in",
         "https://www.metabolical.in",
         "http://127.0.0.1:5173",
-        "https://127.0.0.1:5173",
-        "http://localhost:5173",
+        # "https://127.0.0.1:5173",
+        # "http://localhost:5173",
         "https://localhost:5173",
         # Include local network IPs for development even in production mode
         "http://192.168.1.153:5173",
@@ -549,6 +551,140 @@ async def trigger_scraper_manually():
     except Exception as e:
         logger.error(f"Error triggering scraper: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+@v1_router.get("/config")
+def get_api_config():
+    """Get current API configuration"""
+    try:
+        from .config import config
+        return {
+            "status": "success",
+            "timestamp": datetime.now().isoformat(),
+            "configuration": config.get_config(),
+            "filters": {
+                "metabolic_filter_enabled": config.is_metabolic_filter_enabled(),
+                "deduplication_enabled": config.is_deduplication_enabled()
+            }
+        }
+    except Exception as e:
+        logger.error(f"Error getting config: {e}")
+        return JSONResponse(
+            status_code=500,
+            content={"error": str(e)}
+        )
+
+@v1_router.get("/metabolic-filter/status")
+def get_metabolic_filter_status():
+    """Get current metabolic filter status"""
+    try:
+        from .config import config
+        from .metabolic_filter import metabolic_filter
+        
+        return {
+            "status": "success",
+            "timestamp": datetime.now().isoformat(),
+            "metabolic_filter": {
+                "enabled": config.is_metabolic_filter_enabled(),
+                "threshold": config.METABOLIC_FILTER_THRESHOLD,
+                "keyword_categories": len(metabolic_filter.metabolic_keywords),
+                "total_keywords": sum(len(keywords) for keywords in metabolic_filter.metabolic_keywords.values())
+            },
+            "deduplication": {
+                "enabled": config.is_deduplication_enabled(),
+                "threshold": config.DEDUPLICATION_THRESHOLD
+            }
+        }
+    except Exception as e:
+        logger.error(f"Error getting metabolic filter status: {e}")
+        return JSONResponse(
+            status_code=500,
+            content={"error": str(e)}
+        )
+
+@v1_router.post("/test-filter")
+async def test_metabolic_filter():
+    """Test the metabolic filter with sample data"""
+    try:
+        from .metabolic_filter import metabolic_filter, article_deduplicator
+        
+        # Sample test articles
+        test_articles = [
+            {
+                "id": 1,
+                "title": "New Study Links Diabetes to Heart Disease Risk",
+                "summary": "Research shows strong connection between type 2 diabetes and cardiovascular complications.",
+                "url": "https://example.com/diabetes-heart-study",
+                "source": "Medical Journal",
+                "category": "diseases",
+                "tags": ["diabetes", "heart disease"]
+            },
+            {
+                "id": 2,
+                "title": "Celebrity Fashion Trends for Summer",
+                "summary": "Latest fashion trends from Hollywood celebrities for the summer season.",
+                "url": "https://example.com/fashion-trends",
+                "source": "Fashion Magazine",
+                "category": "lifestyle",
+                "tags": ["fashion", "celebrities"]
+            },
+            {
+                "id": 3,
+                "title": "Metabolic Syndrome Prevention Through Diet",
+                "summary": "How dietary changes can prevent metabolic syndrome and improve insulin sensitivity.",
+                "url": "https://example.com/metabolic-syndrome-diet",
+                "source": "Nutrition Research",
+                "category": "nutrition",
+                "tags": ["metabolic syndrome", "diet", "prevention"]
+            },
+            {
+                "id": 4,
+                "title": "Air Pollution Linked to Obesity Rates",
+                "summary": "New research connects air pollution exposure to increased obesity and metabolic dysfunction.",
+                "url": "https://example.com/pollution-obesity",
+                "source": "Environmental Health",
+                "category": "environmental",
+                "tags": ["air pollution", "obesity", "environmental health"]
+            }
+        ]
+        
+        # Test metabolic filtering
+        metabolic_results = []
+        for article in test_articles:
+            is_relevant, score, keywords = metabolic_filter.contains_metabolic_content(
+                article['title'], article['summary'], ""
+            )
+            metabolic_results.append({
+                "article_id": article['id'],
+                "title": article['title'][:50] + "...",
+                "is_metabolic_relevant": is_relevant,
+                "relevance_score": round(score, 3),
+                "matched_keywords": keywords[:5]  # Top 5 keywords
+            })
+        
+        # Test filtering
+        filtered_articles = metabolic_filter.filter_articles(test_articles.copy())
+        
+        return {
+            "status": "success",
+            "timestamp": datetime.now().isoformat(),
+            "test_results": {
+                "original_count": len(test_articles),
+                "filtered_count": len(filtered_articles),
+                "metabolic_analysis": metabolic_results,
+                "filtered_article_ids": [article['id'] for article in filtered_articles]
+            },
+            "configuration": {
+                "metabolic_filter_enabled": config.is_metabolic_filter_enabled(),
+                "filter_threshold": config.METABOLIC_FILTER_THRESHOLD
+            }
+        }
+        
+    except Exception as e:
+        logger.error(f"Error testing metabolic filter: {e}")
+        return JSONResponse(
+            status_code=500,
+            content={"error": str(e)}
+        )
 
 @v1_router.get("/categories")
 def get_categories():
