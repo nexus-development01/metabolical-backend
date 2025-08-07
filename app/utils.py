@@ -7,6 +7,7 @@ import sqlite3
 import json
 import threading
 import re
+import html
 from typing import List, Dict, Optional, Tuple
 from datetime import datetime, timedelta
 from functools import lru_cache
@@ -321,6 +322,22 @@ class SQLiteConnectionPool:
 # Global connection pool
 connection_pool = SQLiteConnectionPool(DB_PATH)
 
+def decode_html_entities(text: str) -> str:
+    """
+    Decode HTML entities in text to proper characters
+    
+    Args:
+        text: Text that may contain HTML entities like &#039; or &amp;
+        
+    Returns:
+        str: Text with HTML entities decoded to proper characters
+    """
+    if not text or not isinstance(text, str):
+        return text
+    
+    # Decode HTML entities like &#039; -> ' and &amp; -> &
+    return html.unescape(text)
+
 def is_valid_article_url(url: str) -> bool:
     """
     Check if an article URL is valid and accessible
@@ -491,18 +508,28 @@ def get_articles_paginated_optimized(
                 # Use enhanced categorization system
                 enhanced_condition, enhanced_params = get_enhanced_tag_conditions(tag)
                 
-                # Special handling for "latest" - add date filter
+                # Special handling for "latest" - add date filter for recent articles only
                 if tag.lower() == "latest":
-                    # Combine enhanced matching with date filtering
-                    date_condition = """(
-                        date LIKE '%2025-08%' OR 
-                        date LIKE '%Aug 2025%' OR
-                        date LIKE '%2025%'
+                    # Get current date and recent dates (last 2 days)
+                    current_date = datetime.now()
+                    yesterday = current_date - timedelta(days=1)
+                    day_before = current_date - timedelta(days=2)
+                    
+                    # Format dates for matching
+                    today_str = current_date.strftime('%Y-%m-%d')
+                    yesterday_str = yesterday.strftime('%Y-%m-%d')
+                    day_before_str = day_before.strftime('%Y-%m-%d')
+                    
+                    # Only include articles from last 2 days for "latest"
+                    date_condition = f"""(
+                        date LIKE '%{today_str}%' OR 
+                        date LIKE '%{yesterday_str}%' OR
+                        date LIKE '%{day_before_str}%'
                     )"""
                     final_condition = f"({enhanced_condition} AND {date_condition})"
                     where_conditions.append(final_condition)
                     params.extend(enhanced_params)
-                    logger.info(f"🏷️ Enhanced filtering for LATEST tag with {len(enhanced_params)} conditions + date filter")
+                    logger.info(f"🏷️ Enhanced filtering for LATEST tag with {len(enhanced_params)} conditions + date filter (last 2 days: {day_before_str} to {today_str})")
                 else:
                     where_conditions.append(enhanced_condition)
                     params.extend(enhanced_params)
@@ -575,6 +602,12 @@ def get_articles_paginated_optimized(
             articles = []
             for row in rows:
                 article = dict(row)
+                
+                # Decode HTML entities in all text fields
+                text_fields = ['title', 'summary', 'source', 'category', 'tags']
+                for field in text_fields:
+                    if article.get(field):
+                        article[field] = decode_html_entities(article[field])
                 
                 # Clean data - handle None/NULL values for required and optional fields
                 # Ensure required fields have proper defaults if None
@@ -772,6 +805,53 @@ def get_articles_paginated_optimized(
                         article['tags'] = []
                 else:
                     article['tags'] = []
+                
+                # Clean up outdated "Latest" tags based on article date
+                if isinstance(article['tags'], list):
+                    # Check if article has a "Latest" or "Breaking" tag (including multi-word variants)
+                    has_latest = any(
+                        any(keyword in tag.lower() for keyword in ['latest', 'breaking'])
+                        for tag in article['tags']
+                    )
+                    
+                    if has_latest:
+                        # Check if article is actually recent (last 2 days)
+                        article_date = article.get('date')
+                        is_recent = False
+                        
+                        if article_date:
+                            try:
+                                if isinstance(article_date, str):
+                                    # Parse the date string
+                                    article_dt = datetime.fromisoformat(article_date.replace('Z', '+00:00'))
+                                else:
+                                    article_dt = article_date
+                                
+                                # Check if article is from last 2 days
+                                current_date = datetime.now()
+                                two_days_ago = current_date - timedelta(days=2)
+                                is_recent = article_dt.date() >= two_days_ago.date()
+                                
+                            except (ValueError, AttributeError) as e:
+                                logger.debug(f"Error parsing date for article {article.get('id')}: {e}")
+                                is_recent = False
+                        
+                        # Remove "Latest" tags if article is not recent
+                        if not is_recent:
+                            original_tags = article['tags'].copy()
+                            # Remove tags containing 'latest' or 'breaking' (case insensitive)
+                            article['tags'] = [
+                                tag for tag in article['tags']
+                                if not any(keyword in tag.lower() for keyword in ['latest', 'breaking'])
+                            ]
+                            
+                            if len(original_tags) != len(article['tags']):
+                                logger.debug(f"Removed outdated 'Latest/Breaking' tag from article {article.get('id')} dated {article_date}")
+                                
+                                # Add 'News' tag if no other meaningful tags remain
+                                if not article['tags'] or all(tag.lower() in ['news'] for tag in article['tags']):
+                                    if 'News' not in article['tags']:
+                                        article['tags'].append('News')
                     
                 # Parse date
                 if article.get('date'):
@@ -801,20 +881,9 @@ def get_articles_paginated_optimized(
             else:
                 logger.info(f"📋 Filtering disabled - returning {len(articles)} raw articles")
             
-            # Update total count to reflect filtered results
-            filtered_total = len(articles)
-            
-            # Apply pagination after filtering
-            start_idx = (page - 1) * limit
-            end_idx = start_idx + limit
-            paginated_articles = articles[start_idx:end_idx]
-            
-            # Recalculate pagination info based on filtered results
-            total_pages = (filtered_total + limit - 1) // limit
-            
             return {
-                "articles": paginated_articles,
-                "total": filtered_total,
+                "articles": articles,
+                "total": total,
                 "page": page,
                 "limit": limit,
                 "total_pages": total_pages,
