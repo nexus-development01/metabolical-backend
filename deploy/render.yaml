@@ -18,6 +18,12 @@ services:
         value: INFO
       - key: SCRAPE_INTERVAL_HOURS
         value: 4
+      - key: ENABLE_METABOLIC_FILTER
+        value: false
+      - key: ENABLE_DEDUPLICATION
+        value: true
+      - key: DATABASE_PATH
+        value: /app/data/articles.db
       - key: CORS_ORIGINS
         value: "https://metabolical.in,https://www.metabolical.in,https://localhost:3000,http://localhost:3000,https://localhost:5173,http://localhost:5173"
       # Additional performance optimizations

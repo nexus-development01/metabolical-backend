@@ -11,6 +11,8 @@ services:
       - PYTHONUNBUFFERED=1
       - RENDER=false
       - DATABASE_PATH=/app/data/articles.db
+      - ENABLE_METABOLIC_FILTER=false
+      - ENABLE_DEDUPLICATION=true
       - CORS_ORIGINS=https://metabolical.in,https://www.metabolical.in,https://localhost:3000,https://localhost:5173,http://127.0.0.1:5173
       - LOG_LEVEL=info
       - WORKERS=2

@@ -8,8 +8,8 @@ from typing import Dict, Any
 class Config:
     """Application configuration"""
     
-    # Metabolic Health Filtering
-    ENABLE_METABOLIC_FILTER = os.getenv("ENABLE_METABOLIC_FILTER", "true").lower() == "true"
+    # Metabolic Health Filtering - Disabled by default for general health content
+    ENABLE_METABOLIC_FILTER = os.getenv("ENABLE_METABOLIC_FILTER", "false").lower() == "true"
     METABOLIC_FILTER_THRESHOLD = float(os.getenv("METABOLIC_FILTER_THRESHOLD", "0.1"))
     
     # Deduplication Settings
