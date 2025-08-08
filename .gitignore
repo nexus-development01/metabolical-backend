@@ -209,9 +209,13 @@ __marimo__/
 # Database files
 *.db
 *.db-journal
+*.db-shm
+*.db-wal
 *.sqlite
 *.sqlite3
 data/articles.db
+data/articles.db-shm
+data/articles.db-wal
 
 # Test files
 test_*.py

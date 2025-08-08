@@ -298,6 +298,236 @@ lifestyle:
   - "vaccination"
   - "lifestyle medicine"
 
+# FRONTEND MENU STRUCTURE MAPPINGS
+# These categories match the frontend menu array exactly
+
+# News subcategories
+news:
+  latest:
+  - "breaking"
+  - "recent"
+  - "new study"
+  - "latest research"
+  - "update"
+  - "announced"
+  - "today"
+  - "current"
+
+  govt_schemes:
+  - "government scheme"
+  - "govt scheme"
+  - "ayushman bharat"
+  - "pradhan mantri"
+  - "cghs"
+  - "health scheme"
+  - "public health scheme"
+  - "national health"
+  - "health insurance"
+  - "jan arogya"
+  - "health card"
+  - "beneficiary"
+
+# Additional disease subcategories missing from frontend
+diseases:
+  inflammation:
+  - "inflammation"
+  - "inflammatory"
+  - "immune response"
+  - "cytokine"
+  - "autoimmune"
+  - "arthritis"
+  - "rheumatoid"
+  - "inflammatory bowel"
+
+  thyroid:
+  - "thyroid"
+  - "hypothyroid"
+  - "hyperthyroid"
+  - "thyroid gland"
+  - "thyroid hormone"
+  - "tsh"
+  - "thyroxine"
+  - "goiter"
+
+  sleep_disorders:
+  - "sleep disorder"
+  - "insomnia"
+  - "sleep apnea"
+  - "narcolepsy"
+  - "restless leg"
+  - "sleep study"
+
+  skin:
+  - "skin"
+  - "dermatology"
+  - "dermatitis"
+  - "acne"
+  - "eczema"
+  - "psoriasis"
+  - "melanoma"
+  - "skin cancer"
+  - "rash"
+
+  eyes_and_ears:
+  - "eyes"
+  - "vision"
+  - "hearing"
+  - "ear"
+  - "ophthalmology"
+  - "optical"
+  - "auditory"
+  - "glaucoma"
+  - "cataract"
+  - "tinnitus"
+
+  reproductive_health:
+  - "reproductive health"
+  - "fertility"
+  - "pregnancy"
+  - "maternal health"
+  - "gynecology"
+  - "obstetrics"
+  - "contraception"
+  - "menstrual"
+
+# Solutions subcategories
+solutions:
+  nutrition:
+  - "nutrition"
+  - "diet"
+  - "dietary"
+  - "nutritional"
+  - "supplement"
+  - "vitamin"
+  - "mineral"
+  - "eating habits"
+
+  fitness:
+  - "fitness"
+  - "exercise"
+  - "workout"
+  - "physical activity"
+  - "training"
+  - "gym"
+  - "sports"
+
+  lifestyle:
+  - "lifestyle"
+  - "life style"
+  - "health habits"
+  - "daily routine"
+  - "behavior change"
+  - "habit"
+
+# Food subcategories
+food:
+  natural_food:
+  - "natural food"
+  - "whole food"
+  - "unprocessed"
+  - "farm fresh"
+  - "raw food"
+  - "fresh produce"
+
+  organic_food:
+  - "organic food"
+  - "organic"
+  - "pesticide free"
+  - "chemical free"
+  - "organic farming"
+  - "certified organic"
+
+  processed_food:
+  - "processed food"
+  - "ultra processed"
+  - "packaged food"
+  - "artificial"
+  - "preservatives"
+  - "fast food"
+  - "junk food"
+
+  fish_and_seafood:
+  - "fish"
+  - "seafood"
+  - "omega"
+  - "marine"
+  - "salmon"
+  - "tuna"
+  - "shellfish"
+  - "fish oil"
+
+  food_safety:
+  - "food safety"
+  - "foodborne"
+  - "contamination"
+  - "food hygiene"
+  - "food poisoning"
+  - "food recall"
+
+# Additional audience subcategories
+audience:
+  teenagers:
+  - "teenager"
+  - "adolescent"
+  - "teen"
+  - "young adult"
+  - "puberty"
+  - "teenage"
+  - "high school"
+
+  seniors:
+  - "senior"
+  - "elderly"
+  - "geriatric"
+  - "aging"
+  - "old age"
+  - "retirement"
+  - "older adult"
+
+  athletes:
+  - "athlete"
+  - "sports performance"
+  - "athletic performance"
+  - "competition"
+  - "professional sports"
+  - "olympic"
+
+  families:
+  - "family"
+  - "household"
+  - "parenting"
+  - "family health"
+  - "household health"
+  - "family planning"
+
+# Trending subcategories
+trending:
+  gut_health:
+  - "gut health"
+  - "microbiome"
+  - "digestive health"
+  - "intestinal health"
+  - "probiotic"
+  - "gut bacteria"
+  - "digestive system"
+
+  addiction:
+  - "addiction"
+  - "substance abuse"
+  - "dependency"
+  - "alcoholism"
+  - "drug abuse"
+  - "smoking cessation"
+  - "gambling addiction"
+
+  sexual_wellness:
+  - "sexual wellness"
+  - "sexual health"
+  - "sexuality"
+  - "libido"
+  - "intimate health"
+  - "sexual dysfunction"
+
 audience:
   women:
   - "women's health"
