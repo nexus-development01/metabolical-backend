@@ -965,54 +965,78 @@ def get_articles_paginated_optimized(
                 params.extend([search_term, search_term, search_term])
                 
             if category:
-                # Map frontend categories to database categories and enhanced search
+                # Enhanced category mapping to include both main categories and their subcategories
+                # This ensures main categories like "news" include all their subcategory articles like "policy_and_regulation"
+                
+                # Updated category mappings to match frontend menu structure exactly
                 category_mappings = {
-                    # Frontend category -> Database categories and related content based on your menu
-                    'news': ['news', 'policy', 'international_health'],  # Map 'news' to news, policy, international
-                    'diseases': ['diseases', 'metabolism'],  # Map 'diseases' to diseases and metabolism
-                    'solutions': ['fitness', 'lifestyle', 'nutrition'],  # Map 'solutions' to fitness, lifestyle, nutrition
-                    'food': ['nutrition', 'agriculture', 'environmental_health'],  # Map 'food' to nutrition, agriculture, env health
-                    'audience': ['audience'],  # Map 'audience' to audience
-                    'trending': ['international_health', 'healthcare_system', 'news'],  # Map 'trending' to trending topics
-                    'blogs_and_opinions': ['news', 'policy']  # Map 'blogs_and_opinions' to news and policy
+                    'news': {
+                        'main_categories': ['news', 'policy', 'international_health'],
+                        'subcategories': ['latest', 'policy_and_regulation', 'policy and regulation', 'govt_schemes', 'govt schemes', 'international', 'medical_journals', 'global_health_organizations']
+                    },
+                    'diseases': {
+                        'main_categories': ['diseases', 'metabolism'],
+                        'subcategories': ['diabetes', 'obesity', 'inflammation', 'cardiovascular', 'liver', 'kidney', 'thyroid', 'metabolic', 'metabolic_diseases', 'sleep_disorders', 'sleep disorders', 'skin', 'eyes_and_ears', 'eyes and ears', 'reproductive_health', 'reproductive health']
+                    },
+                    'solutions': {
+                        'main_categories': ['fitness', 'lifestyle', 'nutrition'],
+                        'subcategories': ['nutrition', 'fitness', 'lifestyle', 'wellness', 'prevention']
+                    },
+                    'food': {
+                        'main_categories': ['nutrition', 'agriculture', 'environmental_health'],
+                        'subcategories': ['natural_food', 'natural food', 'organic_food', 'organic food', 'processed_food', 'processed food', 'fish_and_seafood', 'fish and seafood', 'food_safety', 'food safety']
+                    },
+                    'audience': {
+                        'main_categories': ['audience'],
+                        'subcategories': ['women', 'men', 'children', 'teenagers', 'seniors', 'athletes', 'families']
+                    },
+                    'trending': {
+                        'main_categories': ['international_health', 'healthcare_system', 'news'],
+                        'subcategories': ['gut_health', 'gut health', 'mental_health', 'mental health', 'hormones', 'addiction', 'sleep_health', 'sleep health', 'sexual_wellness', 'sexual wellness']
+                    },
+                    'blogs_and_opinions': {
+                        'main_categories': ['news', 'policy'],
+                        'subcategories': ['policy_and_regulation', 'policy and regulation', 'international', 'opinion', 'blog', 'editorial']
+                    }
                 }
                 
-                # Get mapped categories for the requested category
-                mapped_categories = category_mappings.get(category.lower(), [category])
+                # Get mapping for the requested category
+                mapping = category_mappings.get(category.lower(), {
+                    'main_categories': [category],
+                    'subcategories': []
+                })
                 
-                # Create conditions for all mapped categories
+                main_categories = mapping.get('main_categories', [category])
+                subcategories = mapping.get('subcategories', [])
+                
+                # Build comprehensive WHERE conditions
                 category_conditions = []
                 category_params = []
                 
-                for mapped_cat in mapped_categories:
-                    # Direct category match
-                    category_conditions.append("(LOWER(categories) = LOWER(?) OR LOWER(categories) LIKE LOWER(?))")
-                    category_params.extend([mapped_cat, f'%{mapped_cat}%'])
+                # 1. Main category matching (check categories field - handles JSON arrays and strings)
+                for mapped_cat in main_categories:
+                    category_conditions.append("(LOWER(categories) = LOWER(?) OR LOWER(categories) LIKE LOWER(?) OR LOWER(categories) LIKE LOWER(?))")
+                    category_params.extend([mapped_cat, f'%{mapped_cat}%', f'%"{mapped_cat}"%'])
                 
-                # Enhanced content matching for better categorization (simplified approach)
-                if category.lower() in ['solutions', 'food', 'trending', 'blogs_and_opinions']:
-                    content_keywords = {
-                        'solutions': ['treatment', 'therapy', 'solution', 'prevention', 'exercise', 'fitness', 'wellness'],
-                        'food': ['food', 'nutrition', 'diet', 'meal', 'organic', 'natural'],
-                        'trending': ['trending', 'latest', 'breakthrough', 'new study', 'recent'],
-                        'blogs_and_opinions': ['opinion', 'blog', 'editorial', 'commentary', 'analysis']
-                    }
+                # 2. CRITICAL: Include ALL subcategory articles that should belong to this main category
+                for subcat in subcategories:
+                    # Handle both underscore and space versions
+                    subcat_underscore = subcat.replace(" ", "_")
+                    subcat_space = subcat.replace("_", " ")
                     
-                    keywords = content_keywords.get(category.lower(), [])
-                    if keywords:
-                        content_conditions = []
-                        for keyword in keywords[:5]:  # Top 5 keywords for content matching only
-                            content_conditions.append("(LOWER(title) LIKE LOWER(?) OR LOWER(summary) LIKE LOWER(?))")
-                            category_params.extend([f'%{keyword}%', f'%{keyword}%'])
-                        
-                        if content_conditions:
-                            category_conditions.append(f"({' OR '.join(content_conditions)})")
+                    # Match subcategory field exactly
+                    category_conditions.append("(LOWER(subcategory) = LOWER(?) OR LOWER(subcategory) = LOWER(?))")
+                    category_params.extend([subcat_underscore, subcat_space])
+                    
+                    # Match subcategory in tags (JSON format and comma-separated)
+                    category_conditions.append("(LOWER(tags) LIKE LOWER(?) OR LOWER(tags) LIKE LOWER(?) OR LOWER(tags) LIKE LOWER(?))")
+                    category_params.extend([f'%"{subcat_space}"%', f'%{subcat_space},%', f'%, {subcat_space}%'])
                 
-                # Combine all category conditions with OR logic
+                # Combine all conditions with OR
                 if category_conditions:
                     where_conditions.append(f"({' OR '.join(category_conditions)})")
                     params.extend(category_params)
-                    logger.info(f"🔍 Enhanced filtering for category: '{category}' -> mapped to {mapped_categories} with content search")
+                    logger.info(f"🔍 Enhanced category filtering for '{category}' -> {len(main_categories)} main categories, {len(subcategories)} subcategories, {len(category_conditions)} total conditions")
                 
             if tag:
                 # Use enhanced categorization system
@@ -1064,18 +1088,19 @@ def get_articles_paginated_optimized(
             if where_conditions:
                 where_clause = "WHERE " + " AND ".join(where_conditions)
             
-            # Order clause - improved date sorting to handle different date formats
+            # Order clause - prioritize recent dates and subcategory diversity
             if sort_by.upper() == "DESC":
-                # Enhanced sorting: prioritize recent dates with proper timestamp ordering
+                # Enhanced sorting: ensure subcategory diversity while prioritizing recent dates
                 order_clause = """ORDER BY 
                     CASE 
-                        WHEN date LIKE '%2025-08-08%' THEN 1
-                        WHEN date LIKE '%2025-08-07%' THEN 2
-                        WHEN date LIKE '%2025-08-06%' THEN 3
-                        WHEN date LIKE '%2025-08-05%' THEN 4
-                        WHEN date LIKE '%2025%' THEN 5
-                        WHEN date LIKE '%2024%' THEN 6
-                        ELSE 7
+                        WHEN subcategory != 'general' AND subcategory != '' THEN 1  -- All specific subcategories get priority
+                        WHEN date LIKE '%2025-08-08%' THEN 2
+                        WHEN date LIKE '%2025-08-07%' THEN 3
+                        WHEN date LIKE '%2025-08-06%' THEN 4
+                        WHEN date LIKE '%2025-08-05%' THEN 5
+                        WHEN date LIKE '%2025%' THEN 6
+                        WHEN date LIKE '%2024%' THEN 7
+                        ELSE 8
                     END ASC,
                     CASE 
                         WHEN date LIKE '%2025-08-08%' OR date LIKE '%2025-08-07%' THEN 
