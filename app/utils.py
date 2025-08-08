@@ -602,8 +602,69 @@ def get_enhanced_tag_conditions(tag: str) -> Tuple[str, List[str]]:
     Returns SQL WHERE condition and parameters for better categorization
     """
     
-    # Get keywords for the requested tag
-    keywords = ENHANCED_KEYWORDS.get(tag.lower(), [])
+    # Enhanced frontend tag mapping - maps frontend subcategories to database values and keywords
+    frontend_tag_mappings = {
+        # News subcategories
+        'latest': ['latest', 'breaking', 'recent', 'new', 'current', 'breaking news', 'health updates'],
+        'policy and regulation': ['policy', 'regulation', 'government', 'regulatory', 'health policy', 'govt schemes', 'public health'],
+        'govt schemes': ['government', 'scheme', 'policy', 'public health', 'healthcare policy', 'govt', 'ayushman'],
+        'international': ['international', 'global', 'world health', 'who', 'global health', 'pandemic'],
+        
+        # Disease subcategories
+        'diabetes': ['diabetes', 'diabetic', 'blood sugar', 'glucose', 'insulin', 'type 2 diabetes', 'hyperglycemia'],
+        'obesity': ['obesity', 'overweight', 'weight', 'bmi', 'weight management', 'adipose', 'fat'],
+        'inflammation': ['inflammation', 'inflammatory', 'immune', 'cytokine', 'autoimmune', 'arthritis'],
+        'cardiovascular': ['cardiovascular', 'heart', 'cardiac', 'heart disease', 'blood pressure', 'hypertension', 'cholesterol'],
+        'liver': ['liver', 'hepatic', 'fatty liver', 'nafld', 'liver function', 'hepatitis'],
+        'kidney': ['kidney', 'renal', 'dialysis', 'kidney disease', 'nephrology'],
+        'thyroid': ['thyroid', 'hormone', 'endocrine', 'metabolism', 'hypothyroid', 'hyperthyroid'],
+        'metabolic': ['metabolic', 'metabolism', 'metabolic syndrome', 'energy', 'biochemical'],
+        'sleep disorders': ['sleep', 'insomnia', 'sleep disorder', 'circadian', 'sleep quality'],
+        'skin': ['skin', 'dermatology', 'dermatitis', 'acne', 'eczema', 'psoriasis'],
+        'eyes and ears': ['eyes', 'vision', 'hearing', 'ear', 'ophthalmology', 'optical', 'auditory'],
+        'reproductive health': ['reproductive', 'fertility', 'pregnancy', 'maternal', 'gynecology', 'obstetrics'],
+        
+        # Solutions subcategories
+        'nutrition': ['nutrition', 'diet', 'food', 'nutritional', 'dietary', 'nutrient', 'vitamin', 'mineral'],
+        'fitness': ['fitness', 'exercise', 'workout', 'training', 'physical activity', 'gym', 'sports'],
+        'lifestyle': ['lifestyle', 'wellness', 'health habits', 'life style', 'daily routine'],
+        'wellness': ['wellness', 'wellbeing', 'health', 'self care', 'mindfulness', 'meditation'],
+        'prevention': ['prevention', 'preventive', 'screening', 'early detection', 'preventive care', 'immunization'],
+        
+        # Food subcategories
+        'natural food': ['natural', 'organic', 'whole food', 'unprocessed', 'farm fresh', 'natural food'],
+        'organic food': ['organic', 'pesticide free', 'chemical free', 'organic farming', 'organic food'],
+        'processed food': ['processed', 'ultra processed', 'packaged', 'artificial', 'preservatives'],
+        'fish and seafood': ['fish', 'seafood', 'omega', 'marine', 'salmon', 'tuna', 'shellfish'],
+        'food safety': ['food safety', 'foodborne', 'contamination', 'food hygiene', 'food poisoning'],
+        
+        # Audience subcategories
+        'women': ['women', 'female', 'woman', 'maternal', 'pregnancy', 'menopause', 'gynecology'],
+        'men': ['men', 'male', 'man', 'prostate', 'testosterone', 'masculine', 'paternal'],
+        'children': ['children', 'pediatric', 'kids', 'child', 'infant', 'adolescent', 'youth'],
+        'teenagers': ['teenager', 'adolescent', 'teen', 'young adult', 'puberty'],
+        'seniors': ['senior', 'elderly', 'geriatric', 'aging', 'old age', 'retirement'],
+        'athletes': ['athlete', 'sports', 'performance', 'training', 'competition', 'athletic'],
+        'families': ['family', 'household', 'parent', 'parenting', 'family health'],
+        
+        # Trending subcategories
+        'gut health': ['gut', 'microbiome', 'digestive', 'intestinal', 'probiotic', 'gut bacteria'],
+        'mental health': ['mental health', 'depression', 'anxiety', 'stress', 'psychology', 'psychiatric'],
+        'hormones': ['hormone', 'hormonal', 'endocrine', 'insulin', 'cortisol', 'estrogen', 'testosterone'],
+        'addiction': ['addiction', 'substance abuse', 'dependency', 'alcoholism', 'drug abuse'],
+        'sleep health': ['sleep', 'insomnia', 'sleep quality', 'circadian rhythm', 'sleep disorder'],
+        'sexual wellness': ['sexual', 'sexuality', 'libido', 'sexual health', 'intimate health']
+    }
+    
+    # Get keywords for the requested tag - check both exact match and ENHANCED_KEYWORDS
+    keywords = frontend_tag_mappings.get(tag.lower(), ENHANCED_KEYWORDS.get(tag.lower(), []))
+    
+    # If no specific mapping found, try to find partial matches
+    if not keywords:
+        for mapped_tag, mapped_keywords in frontend_tag_mappings.items():
+            if tag.lower() in mapped_tag or mapped_tag in tag.lower():
+                keywords = mapped_keywords
+                break
     
     # Basic tag matching (existing logic)
     tag_underscore = tag.replace(" ", "_")
@@ -630,18 +691,21 @@ def get_enhanced_tag_conditions(tag: str) -> Tuple[str, List[str]]:
     
     # 2. Enhanced keyword matching if available
     if keywords:
-        # Keyword matching in tags
+        # Keyword matching in tags - more comprehensive
         keyword_conditions = []
-        for keyword in keywords[:8]:  # Limit to top 8 keywords for performance
-            keyword_conditions.append('LOWER(tags) LIKE LOWER(?)')
-            params.append(f'%{keyword.lower()}%')
+        for keyword in keywords[:10]:  # Increased to top 10 keywords for better matching
+            keyword_conditions.extend([
+                'LOWER(tags) LIKE LOWER(?)',
+                'LOWER(tags) LIKE LOWER(?)'
+            ])
+            params.extend([f'%{keyword.lower()}%', f'%"{keyword.lower()}"%'])
         
         if keyword_conditions:
             conditions.append(f'({" OR ".join(keyword_conditions)})')
         
         # Content-based matching (title and summary) for top keywords
         content_conditions = []
-        for keyword in keywords[:4]:  # Top 4 keywords for content matching
+        for keyword in keywords[:6]:  # Top 6 keywords for content matching
             content_conditions.append('(LOWER(title) LIKE LOWER(?) OR LOWER(summary) LIKE LOWER(?))')
             params.extend([f'%{keyword.lower()}%', f'%{keyword.lower()}%'])
         
@@ -841,14 +905,14 @@ def get_articles_paginated_optimized(
             if category:
                 # Map frontend categories to database categories and enhanced search
                 category_mappings = {
-                    # Frontend category -> Database categories and related content
-                    'food': ['nutrition', 'lifestyle'],  # Map 'food' to nutrition and lifestyle
+                    # Frontend category -> Database categories and related content based on your menu
+                    'news': ['news', 'policy', 'international_health'],  # Map 'news' to news, policy, international
+                    'diseases': ['diseases', 'metabolism'],  # Map 'diseases' to diseases and metabolism
                     'solutions': ['fitness', 'lifestyle', 'nutrition'],  # Map 'solutions' to fitness, lifestyle, nutrition
-                    'blogs_and_opinions': ['news', 'policy'],  # Map 'blogs_and_opinions' to news and policy
-                    'trending': ['international_health', 'healthcare_system'],  # Map 'trending' to international_health and healthcare_system
-                    'news': ['news'],
-                    'diseases': ['diseases'],
-                    'audience': ['audience']
+                    'food': ['nutrition', 'agriculture', 'environmental_health'],  # Map 'food' to nutrition, agriculture, env health
+                    'audience': ['audience'],  # Map 'audience' to audience
+                    'trending': ['international_health', 'healthcare_system', 'news'],  # Map 'trending' to trending topics
+                    'blogs_and_opinions': ['news', 'policy']  # Map 'blogs_and_opinions' to news and policy
                 }
                 
                 # Get mapped categories for the requested category
@@ -863,26 +927,26 @@ def get_articles_paginated_optimized(
                     category_conditions.append("(LOWER(categories) = LOWER(?) OR LOWER(categories) LIKE LOWER(?))")
                     category_params.extend([mapped_cat, f'%{mapped_cat}%'])
                 
-                # For special frontend categories, also search in content
-                if category.lower() in ['food', 'solutions', 'blogs_and_opinions', 'trending']:
+                # Enhanced content matching for better categorization (simplified approach)
+                if category.lower() in ['solutions', 'food', 'trending', 'blogs_and_opinions']:
                     content_keywords = {
-                        'food': ['food', 'nutrition', 'diet', 'eating', 'meal', 'recipe', 'cooking', 'ingredient'],
-                        'solutions': ['treatment', 'therapy', 'cure', 'solution', 'prevention', 'remedy', 'exercise', 'fitness'],
-                        'blogs_and_opinions': ['opinion', 'blog', 'editorial', 'commentary', 'analysis', 'perspective'],
-                        'trending': ['trending', 'latest', 'breakthrough', 'new study', 'recent', 'innovation']
+                        'solutions': ['treatment', 'therapy', 'solution', 'prevention', 'exercise', 'fitness', 'wellness'],
+                        'food': ['food', 'nutrition', 'diet', 'meal', 'organic', 'natural'],
+                        'trending': ['trending', 'latest', 'breakthrough', 'new study', 'recent'],
+                        'blogs_and_opinions': ['opinion', 'blog', 'editorial', 'commentary', 'analysis']
                     }
                     
                     keywords = content_keywords.get(category.lower(), [])
                     if keywords:
-                        keyword_conditions = []
-                        for keyword in keywords[:5]:  # Limit to top 5 keywords
-                            keyword_conditions.append("(LOWER(title) LIKE LOWER(?) OR LOWER(summary) LIKE LOWER(?))")
+                        content_conditions = []
+                        for keyword in keywords[:5]:  # Top 5 keywords for content matching only
+                            content_conditions.append("(LOWER(title) LIKE LOWER(?) OR LOWER(summary) LIKE LOWER(?))")
                             category_params.extend([f'%{keyword}%', f'%{keyword}%'])
                         
-                        if keyword_conditions:
-                            category_conditions.append(f"({' OR '.join(keyword_conditions)})")
+                        if content_conditions:
+                            category_conditions.append(f"({' OR '.join(content_conditions)})")
                 
-                # Combine all category conditions
+                # Combine all category conditions with OR logic
                 if category_conditions:
                     where_conditions.append(f"({' OR '.join(category_conditions)})")
                     params.extend(category_params)
