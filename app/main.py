@@ -4,7 +4,7 @@ Health articles API with search, categorization, and pagination.
 """
 
 from fastapi import FastAPI, HTTPException, Query, APIRouter
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from pydantic import BaseModel
@@ -167,7 +167,7 @@ app.add_middleware(
         "Cache-Control"
     ],
     expose_headers=["Content-Length", "X-Total-Count"],
-    max_age=3600,  # Cache preflight requests for 1 hour
+    max_age=60,  # Cache preflight requests for 1 minute only (reduced from 1 hour)
 )
 
 # Load categories on startup
@@ -208,12 +208,21 @@ class HealthResponse(BaseModel):
     database_status: str
     total_articles: Optional[int] = None
 
+# Helper function to add no-cache headers
+def add_no_cache_headers(response: Response):
+    """Add headers to prevent caching of API responses"""
+    response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate, max-age=0"
+    response.headers["Pragma"] = "no-cache"
+    response.headers["Expires"] = "0"
+    return response
+
 # =============================================
 # BASE API ENDPOINTS (NO PREFIX)
 # =============================================
 
 @app.get("/search", response_model=PaginatedArticleResponse)
 def search_articles_base(
+    response: Response,
     q: str = Query(..., description="Search query", min_length=2),
     page: int = Query(1, ge=1, description="Page number"),
     limit: int = Query(20, ge=1, le=100, description="Number of articles per page"),
@@ -235,6 +244,9 @@ def search_articles_base(
         )
         
         logger.info(f"📊 Base Search '{q}' result: {result['total']} total, {len(result['articles'])} returned")
+        
+        # Add no-cache headers for fresh data
+        add_no_cache_headers(response)
         
         return PaginatedArticleResponse(**result)
     except Exception as e:
@@ -350,6 +362,7 @@ def search_articles_v1_articles(
 
 @v1_router.get("/search", response_model=PaginatedArticleResponse)
 def search_articles_v1(
+    response: Response,
     q: str = Query(..., description="Search query", min_length=2),
     page: int = Query(1, ge=1, description="Page number"),
     limit: int = Query(20, ge=1, le=100, description="Number of articles per page"),
@@ -371,6 +384,9 @@ def search_articles_v1(
         )
         
         logger.info(f"📊 V1 Search '{q}' result: {result['total']} total, {len(result['articles'])} returned")
+        
+        # Add no-cache headers for fresh data
+        add_no_cache_headers(response)
         
         return PaginatedArticleResponse(**result)
     except Exception as e:
@@ -634,6 +650,22 @@ async def trigger_scraper_manually():
         }
     except Exception as e:
         logger.error(f"Error triggering scraper: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@v1_router.post("/cache/clear")
+async def clear_application_cache():
+    """Clear all application caches to ensure fresh data"""
+    try:
+        from .utils import clear_all_caches
+        clear_all_caches()
+        
+        return {
+            "status": "success",
+            "timestamp": datetime.now().isoformat(),
+            "message": "All application caches cleared successfully"
+        }
+    except Exception as e:
+        logger.error(f"Error clearing caches: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @v1_router.get("/config")

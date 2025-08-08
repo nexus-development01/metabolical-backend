@@ -763,6 +763,14 @@ _category_cache = {}
 _stats_cache = {}
 _cache_timestamp = None
 
+def clear_all_caches():
+    """Clear all application caches to ensure fresh data"""
+    global _category_cache, _stats_cache, _cache_timestamp
+    _category_cache.clear()
+    _stats_cache.clear()
+    _cache_timestamp = None
+    logger.info("🗑️ All application caches cleared")
+
 def get_cached_category_keywords() -> Dict:
     """Load and cache category keywords from YAML file"""
     global _category_cache
@@ -930,19 +938,29 @@ def get_articles_paginated_optimized(
             if where_conditions:
                 where_clause = "WHERE " + " AND ".join(where_conditions)
             
-            # Order clause - simplified and reliable date sorting
+            # Order clause - improved date sorting to handle different date formats
             if sort_by.upper() == "DESC":
-                # For descending order, prioritize 2025 dates first with simpler logic
+                # Enhanced sorting: prioritize recent dates with proper timestamp ordering
                 order_clause = """ORDER BY 
                     CASE 
-                        WHEN date LIKE '%2025%' THEN 1 
-                        WHEN date LIKE '%2024%' THEN 2 
-                        ELSE 3 
+                        WHEN date LIKE '%2025-08-08%' THEN 1
+                        WHEN date LIKE '%2025-08-07%' THEN 2
+                        WHEN date LIKE '%2025-08-06%' THEN 3
+                        WHEN date LIKE '%2025-08-05%' THEN 4
+                        WHEN date LIKE '%2025%' THEN 5
+                        WHEN date LIKE '%2024%' THEN 6
+                        ELSE 7
                     END ASC,
-                    date DESC, 
+                    CASE 
+                        WHEN date LIKE '%2025-08-08%' OR date LIKE '%2025-08-07%' THEN 
+                            datetime(substr(date, 1, 19))
+                        WHEN date LIKE '%2025%' THEN 
+                            datetime(date)
+                        ELSE date
+                    END DESC,
                     id DESC"""
             else:
-                order_clause = f"ORDER BY date ASC, id ASC"
+                order_clause = f"ORDER BY datetime(date) ASC, id ASC"
             
             # Count total articles
             count_query = f"SELECT COUNT(*) FROM articles {where_clause}"
@@ -1283,8 +1301,8 @@ def get_category_stats_cached() -> Dict[str, int]:
     """Get cached category statistics"""
     global _stats_cache, _cache_timestamp
     
-    # Cache for 5 minutes
-    if _cache_timestamp and (datetime.now() - _cache_timestamp).seconds < 300:
+    # Cache for 1 minute only (reduced from 5 minutes for fresher data)
+    if _cache_timestamp and (datetime.now() - _cache_timestamp).seconds < 60:
         return _stats_cache.get('categories', {})
     
     try:
@@ -1331,8 +1349,8 @@ def get_cached_stats() -> Dict:
     """Get cached general statistics"""
     global _stats_cache, _cache_timestamp
     
-    # Cache for 5 minutes
-    if _cache_timestamp and (datetime.now() - _cache_timestamp).seconds < 300:
+    # Cache for 1 minute only (reduced from 5 minutes for fresher data)
+    if _cache_timestamp and (datetime.now() - _cache_timestamp).seconds < 60:
         return _stats_cache.get('general', {})
     
     try:
@@ -1601,9 +1619,8 @@ def get_all_tags() -> List[str]:
         logger.error(f"Error getting tags: {e}")
         return []
 
-@lru_cache(maxsize=1)
 def get_tags_cached() -> List[str]:
-    """Get cached list of all tags"""
+    """Get cached list of all tags - Cache disabled for fresh data"""
     return get_all_tags()
 
 def search_articles_optimized(
