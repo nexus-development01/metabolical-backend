@@ -606,7 +606,20 @@ def get_enhanced_tag_conditions(tag: str) -> Tuple[str, List[str]]:
     frontend_tag_mappings = {
         # News subcategories
         'latest': ['latest', 'breaking', 'recent', 'new', 'current', 'breaking news', 'health updates'],
-        'policy and regulation': ['policy', 'regulation', 'government', 'regulatory', 'health policy', 'govt schemes', 'public health'],
+        'policy and regulation': [
+            'health policy', 'healthcare policy', 'medical policy', 'public health policy',
+            'government health', 'health regulation', 'medical regulation', 'healthcare regulation',
+            'health law', 'medical law', 'healthcare law',
+            'fda approval', 'drug approval', 'medical approval', 'clinical guidelines',
+            'health standards', 'medical standards', 'healthcare standards',
+            'health ministry', 'health department', 'public health department',
+            'health scheme', 'medical scheme', 'healthcare scheme', 'government scheme',
+            'cghs', 'ayushman bharat', 'health insurance policy',
+            'medical establishment', 'hospital registration', 'clinic registration',
+            'health surveillance', 'disease surveillance', 'public health surveillance',
+            'health emergency', 'public health emergency', 'health alert',
+            'vaccination policy', 'immunization policy', 'quarantine policy'
+        ],
         'govt schemes': ['government', 'scheme', 'policy', 'public health', 'healthcare policy', 'govt', 'ayushman'],
         'international': ['international', 'global', 'world health', 'who', 'global health', 'pandemic'],
         
@@ -671,6 +684,55 @@ def get_enhanced_tag_conditions(tag: str) -> Tuple[str, List[str]]:
     conditions = []
     params = []
     
+    # Special handling for "policy and regulation" - be more restrictive
+    if tag.lower() in ['policy and regulation', 'policy_and_regulation']:
+        # For policy and regulation, we need to be very specific and exclude research articles
+        # Only match articles that explicitly mention policy/regulation in title or have proper policy tags
+        
+        # 1. Match exact policy tags in JSON format
+        conditions.append('(LOWER(tags) LIKE LOWER(?) OR LOWER(tags) LIKE LOWER(?))')
+        params.extend(['%"policy and regulation"%', '%"health policy"%'])
+        
+        # 2. Match title that explicitly mentions policy, regulation, government, or schemes
+        policy_title_conditions = []
+        policy_keywords = [
+            'health policy', 'medical policy', 'healthcare policy', 'public health policy',
+            'government health scheme', 'health regulation', 'medical regulation',
+            'fda approval', 'health ministry', 'health department', 'cghs',
+            'ayushman bharat', 'health insurance policy', 'medical establishment registration',
+            'government scheme', 'public health department', 'health law', 'medical law'
+        ]
+        
+        for keyword in policy_keywords:
+            policy_title_conditions.append('LOWER(title) LIKE LOWER(?)')
+            params.append(f'%{keyword}%')
+        
+        # Add title-based conditions
+        if policy_title_conditions:
+            conditions.append(f'({" OR ".join(policy_title_conditions)})')
+        
+        # 3. Exclude research articles - articles with research terms should not appear in policy category
+        research_exclusions = [
+            'study finds', 'research shows', 'researchers show', 'scientists discover',
+            'new study', 'medical research', 'clinical trial', 'research paper',
+            'study reveals', 'findings suggest', 'according to research'
+        ]
+        
+        exclusion_conditions = []
+        for exclusion in research_exclusions:
+            exclusion_conditions.append('LOWER(title) NOT LIKE LOWER(?)')
+            params.append(f'%{exclusion}%')
+        
+        # Add exclusion conditions
+        if exclusion_conditions:
+            conditions.append(f'({" AND ".join(exclusion_conditions)})')
+        
+        # Combine with AND logic for policy and regulation (more restrictive)
+        final_condition = f'({" AND ".join(conditions)})'
+        
+        return final_condition, params
+    
+    # For all other tags, use the original logic
     # 1. Enhanced tag matching for both JSON and comma-separated formats
     # JSON format: ["tag", "other"] and comma-separated: "tag, other, another"
     tag_underscore = tag.replace(" ", "_")
