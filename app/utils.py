@@ -684,16 +684,19 @@ def get_enhanced_tag_conditions(tag: str) -> Tuple[str, List[str]]:
     conditions = []
     params = []
     
-    # Special handling for "policy and regulation" - be more restrictive
+    # Special handling for "policy and regulation" - be more specific but not overly restrictive
     if tag.lower() in ['policy and regulation', 'policy_and_regulation']:
-        # For policy and regulation, we need to be very specific and exclude research articles
-        # Only match articles that explicitly mention policy/regulation in title or have proper policy tags
+        # For policy and regulation, include both explicit policy tags and policy-related content
         
         # 1. Match exact policy tags in JSON format
         conditions.append('(LOWER(tags) LIKE LOWER(?) OR LOWER(tags) LIKE LOWER(?))')
         params.extend(['%"policy and regulation"%', '%"health policy"%'])
         
-        # 2. Match title that explicitly mentions policy, regulation, government, or schemes
+        # 2. Match subcategory field for policy_and_regulation
+        conditions.append('LOWER(subcategory) = LOWER(?)')
+        params.append('policy_and_regulation')
+        
+        # 3. Match title that explicitly mentions policy, regulation, government, or schemes
         policy_title_conditions = []
         policy_keywords = [
             'health policy', 'medical policy', 'healthcare policy', 'public health policy',
@@ -711,24 +714,8 @@ def get_enhanced_tag_conditions(tag: str) -> Tuple[str, List[str]]:
         if policy_title_conditions:
             conditions.append(f'({" OR ".join(policy_title_conditions)})')
         
-        # 3. Exclude research articles - articles with research terms should not appear in policy category
-        research_exclusions = [
-            'study finds', 'research shows', 'researchers show', 'scientists discover',
-            'new study', 'medical research', 'clinical trial', 'research paper',
-            'study reveals', 'findings suggest', 'according to research'
-        ]
-        
-        exclusion_conditions = []
-        for exclusion in research_exclusions:
-            exclusion_conditions.append('LOWER(title) NOT LIKE LOWER(?)')
-            params.append(f'%{exclusion}%')
-        
-        # Add exclusion conditions
-        if exclusion_conditions:
-            conditions.append(f'({" AND ".join(exclusion_conditions)})')
-        
-        # Combine with AND logic for policy and regulation (more restrictive)
-        final_condition = f'({" AND ".join(conditions)})'
+        # Combine with OR logic for better results (changed from AND)
+        final_condition = f'({" OR ".join(conditions)})'
         
         return final_condition, params
     
