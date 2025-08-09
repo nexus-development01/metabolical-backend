@@ -1099,38 +1099,16 @@ def get_articles_paginated_optimized(
             if where_conditions:
                 where_clause = "WHERE " + " AND ".join(where_conditions)
             
-            # Order clause - prioritize recent dates and subcategory diversity
+            # Order clause - ALWAYS prioritize latest articles first (simple and efficient)
             if sort_by.upper() == "DESC":
-                # Enhanced sorting: ensure subcategory diversity while prioritizing recent dates
-                current_date = datetime.now()
-                today_str = current_date.strftime('%Y-%m-%d')
-                yesterday_str = (current_date - timedelta(days=1)).strftime('%Y-%m-%d')
-                two_days_ago_str = (current_date - timedelta(days=2)).strftime('%Y-%m-%d')
-                three_days_ago_str = (current_date - timedelta(days=3)).strftime('%Y-%m-%d')
-                current_year = current_date.year
-                last_year = current_year - 1
-                
-                order_clause = f"""ORDER BY 
-                    CASE 
-                        WHEN subcategory != 'general' AND subcategory != '' THEN 1  -- All specific subcategories get priority
-                        WHEN date LIKE '%{today_str}%' THEN 2
-                        WHEN date LIKE '%{yesterday_str}%' THEN 3
-                        WHEN date LIKE '%{two_days_ago_str}%' THEN 4
-                        WHEN date LIKE '%{three_days_ago_str}%' THEN 5
-                        WHEN date LIKE '%{current_year}%' THEN 6
-                        WHEN date LIKE '%{last_year}%' THEN 7
-                        ELSE 8
-                    END ASC,
-                    CASE 
-                        WHEN date LIKE '%{today_str}%' OR date LIKE '%{yesterday_str}%' THEN 
-                            datetime(substr(date, 1, 19))
-                        WHEN date LIKE '%{current_year}%' THEN 
-                            datetime(date)
-                        ELSE date
-                    END DESC,
+                # Simple but effective: Latest articles first, then by ID for consistency
+                order_clause = """ORDER BY 
+                    datetime(date) DESC,
                     id DESC"""
             else:
-                order_clause = f"ORDER BY datetime(date) ASC, id ASC"
+                order_clause = """ORDER BY 
+                    datetime(date) ASC, 
+                    id ASC"""
             
             # Count total articles
             count_query = f"SELECT COUNT(*) FROM articles {where_clause}"
@@ -1449,6 +1427,11 @@ def get_articles_paginated_optimized(
             else:
                 logger.info(f"📋 Filtering disabled - returning {len(articles)} raw articles")
             
+            # Get latest article timestamp
+            cursor.execute("SELECT MAX(created_at) FROM articles")
+            last_updated_str = cursor.fetchone()[0]
+            last_updated = datetime.fromisoformat(last_updated_str.replace('Z', '+00:00')) if last_updated_str else None
+
             return {
                 "articles": articles,
                 "total": total,
@@ -1456,7 +1439,8 @@ def get_articles_paginated_optimized(
                 "limit": limit,
                 "total_pages": total_pages,
                 "has_next": page < total_pages,
-                "has_previous": page > 1
+                "has_previous": page > 1,
+                "last_updated": last_updated
             }
             
     except Exception as e:
@@ -1468,7 +1452,8 @@ def get_articles_paginated_optimized(
             "limit": limit,
             "total_pages": 0,
             "has_next": False,
-            "has_previous": False
+            "has_previous": False,
+            "last_updated": None
         }
 
 def get_category_stats_cached() -> Dict[str, int]:
@@ -1697,9 +1682,10 @@ def initialize_optimizations():
                         logger.info(f"Adding missing {column_name} column to articles table")
                         cursor.execute(f"ALTER TABLE articles ADD COLUMN {column_name} {column_def}")
             
-            # Create indexes if they don't exist
+            # Create indexes if they don't exist - optimized for concurrent access
             indexes = [
                 "CREATE INDEX IF NOT EXISTS idx_articles_date ON articles(date)",
+                "CREATE INDEX IF NOT EXISTS idx_articles_date_id ON articles(date DESC, id DESC)",  # Compound index for sorting
                 "CREATE INDEX IF NOT EXISTS idx_articles_categories ON articles(categories)",
                 "CREATE INDEX IF NOT EXISTS idx_articles_source ON articles(source)",
                 "CREATE INDEX IF NOT EXISTS idx_articles_title ON articles(title)",

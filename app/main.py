@@ -40,19 +40,29 @@ app = FastAPI(
 )
 
 # Startup and shutdown event handlers
+
+import threading
+
+def start_scheduler_in_thread():
+    def run_scheduler():
+        try:
+            health_scheduler.start_scheduler()
+            logger.info("✅ Background scheduler started successfully (threaded)")
+        except Exception as e:
+            logger.error(f"❌ Failed to start background scheduler (threaded): {e}")
+    t = threading.Thread(target=run_scheduler, daemon=True)
+    t.start()
+
 @app.on_event("startup")
 async def startup_event():
-    """Initialize the application and start background scheduler"""
+    """Initialize the application and start background scheduler in a separate thread"""
     logger.info("🚀 Starting Metabolical Backend API...")
-    
     # Check database initialization
     try:
         article_count = get_total_articles_count()
         logger.info(f"📊 Database initialized with {article_count} articles")
-        
         if article_count == 0:
             logger.warning("⚠️ Database is empty - consider running database seeding")
-            
     except Exception as e:
         logger.error(f"❌ Database initialization check failed: {e}")
         logger.info("🔧 Attempting to reinitialize database...")
@@ -61,13 +71,8 @@ async def startup_event():
             logger.info("✅ Database reinitialized successfully")
         except Exception as reinit_error:
             logger.error(f"❌ Database reinitialization failed: {reinit_error}")
-    
-    # Start the background scheduler
-    try:
-        health_scheduler.start_scheduler()
-        logger.info("✅ Background scheduler started successfully")
-    except Exception as e:
-        logger.error(f"❌ Failed to start background scheduler: {e}")
+    # Start the background scheduler in a separate thread
+    start_scheduler_in_thread()
 
 @app.on_event("shutdown") 
 async def shutdown_event():
@@ -201,6 +206,7 @@ class PaginatedArticleResponse(BaseModel):
     total_pages: int
     has_next: bool
     has_previous: bool
+    last_updated: Optional[datetime] = None
 
 class HealthResponse(BaseModel):
     status: str

@@ -645,10 +645,10 @@ class MasterHealthScraper:
         return ','.join(list(set(tags)))  # Remove duplicates
 
     def save_articles(self, articles: List[Dict]) -> int:
-        """Save articles to database"""
+        """Save articles to database and clear cache for immediate frontend updates"""
         saved_count = 0
         
-        with sqlite3.connect(DB_PATH) as conn:
+        with sqlite3.connect(DB_PATH, timeout=30.0, check_same_thread=False) as conn:
             for article in articles:
                 try:
                     # Use explicit column names that match the database schema exactly
@@ -676,6 +676,22 @@ class MasterHealthScraper:
                     logger.error(f"Error saving article '{article['title']}': {e}")
             
             conn.commit()
+        
+        # Clear cache immediately after saving new articles so frontend gets fresh data
+        if saved_count > 0:
+            try:
+                from app.utils import clear_all_caches
+                clear_all_caches()
+                logger.info(f"🗑️ Cache cleared after saving {saved_count} new articles - frontend will get fresh data")
+            except ImportError:
+                try:
+                    import sys
+                    sys.path.append(str(Path(__file__).parent.parent))
+                    from utils import clear_all_caches
+                    clear_all_caches()
+                    logger.info(f"🗑️ Cache cleared after saving {saved_count} new articles - frontend will get fresh data")
+                except Exception as e:
+                    logger.warning(f"Could not clear cache after saving articles: {e}")
         
         return saved_count
 

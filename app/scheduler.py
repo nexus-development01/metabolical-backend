@@ -9,12 +9,12 @@ import asyncio
 import os
 from datetime import datetime, timedelta
 from pathlib import Path
-from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from apscheduler.schedulers.blocking import BlockingScheduler
 from apscheduler.triggers.interval import IntervalTrigger
 from apscheduler.triggers.cron import CronTrigger
 from apscheduler.triggers.date import DateTrigger
 from apscheduler.jobstores.memory import MemoryJobStore
-from apscheduler.executors.asyncio import AsyncIOExecutor
+from apscheduler.executors.pool import ThreadPoolExecutor
 import sys
 
 # Add project root to path
@@ -29,12 +29,12 @@ class HealthNewsScheduler:
     """Background scheduler for health news scraping tasks - Cloud Optimized"""
     
     def __init__(self):
-        # Configure scheduler for cloud environment
+        # Configure scheduler for cloud environment with thread pool
         jobstores = {
             'default': MemoryJobStore()
         }
         executors = {
-            'default': AsyncIOExecutor()
+            'default': ThreadPoolExecutor(max_workers=2)  # Limit concurrent jobs
         }
         job_defaults = {
             'coalesce': True,  # Combine multiple pending executions into one
@@ -42,7 +42,7 @@ class HealthNewsScheduler:
             'misfire_grace_time': 300  # 5 minutes grace time for missed executions
         }
         
-        self.scheduler = AsyncIOScheduler(
+        self.scheduler = BlockingScheduler(
             jobstores=jobstores,
             executors=executors,
             job_defaults=job_defaults,
@@ -53,8 +53,8 @@ class HealthNewsScheduler:
         # Cloud environment detection
         self.is_cloud = os.getenv('RENDER') is not None or os.getenv('RAILWAY_ENVIRONMENT') is not None
         
-    async def scrape_health_news(self):
-        """Background task to scrape health news - Cloud Optimized"""
+    def scrape_health_news(self):
+        """Background task to scrape health news - Thread-safe"""
         try:
             logger.info("🕷️ Starting scheduled health news scraping...")
             
@@ -92,15 +92,15 @@ class HealthNewsScheduler:
                 raise
             return {"error": str(e), "total_saved": 0}
 
-    async def cleanup_database(self):
-        """Clean old articles and optimize database - Cloud Optimized"""
+    def cleanup_database(self):
+        """Clean old articles and optimize database - Thread-safe"""
         try:
             logger.info("🧹 Starting database cleanup...")
             
             import sqlite3
             db_path = BASE_DIR / "data" / "articles.db"
             
-            with sqlite3.connect(db_path) as conn:
+            with sqlite3.connect(db_path, timeout=30.0, check_same_thread=False) as conn:
                 # Delete articles older than 6 months
                 six_months_ago = (datetime.now() - timedelta(days=180)).isoformat()
                 
@@ -121,8 +121,8 @@ class HealthNewsScheduler:
             if not self.is_cloud:
                 raise
 
-    async def keepalive_task(self):
-        """Keepalive task to prevent cloud service from sleeping"""
+    def keepalive_task(self):
+        """Keepalive task to prevent cloud service from sleeping - Thread-safe"""
         try:
             logger.info("💓 Keepalive heartbeat - Scheduler active")
             
@@ -130,7 +130,7 @@ class HealthNewsScheduler:
             import sqlite3
             db_path = BASE_DIR / "data" / "articles.db"
             
-            with sqlite3.connect(db_path) as conn:
+            with sqlite3.connect(db_path, timeout=30.0, check_same_thread=False) as conn:
                 cursor = conn.cursor()
                 cursor.execute("SELECT COUNT(*) FROM articles")
                 count = cursor.fetchone()[0]
@@ -237,10 +237,10 @@ class HealthNewsScheduler:
                 })
         return jobs
     
-    async def run_scraper_now(self):
-        """Manually trigger scraper immediately"""
+    def run_scraper_now(self):
+        """Manually trigger scraper immediately - Thread-safe"""
         logger.info("🚀 Manual scraper trigger requested")
-        return await self.scrape_health_news()
+        return self.scrape_health_news()
 
 # Global scheduler instance
 health_scheduler = HealthNewsScheduler()
