@@ -26,11 +26,35 @@ logger = logging.getLogger(__name__)
 try:
     from .metabolic_filter import filter_and_deduplicate_articles, metabolic_filter
     from .config import config
+    logger.info("✅ Successfully imported metabolic_filter and config")
 except ImportError:
-    import sys
-    sys.path.append(str(Path(__file__).parent))
-    from metabolic_filter import filter_and_deduplicate_articles, metabolic_filter
-    from config import config
+    try:
+        import sys
+        sys.path.append(str(Path(__file__).parent))
+        from metabolic_filter import filter_and_deduplicate_articles, metabolic_filter
+        from config import config
+        logger.info("✅ Successfully imported metabolic_filter and config (fallback)")
+    except ImportError as e:
+        logger.warning(f"Could not import metabolic_filter: {e}")
+        # Create fallback functions
+        def filter_and_deduplicate_articles(articles):
+            return articles
+        def metabolic_filter(article):
+            return True, 1.0
+        
+        class FallbackConfig:
+            ENABLE_METABOLIC_FILTER = False
+            ENABLE_DEDUPLICATION = False  # Disable to avoid further import issues
+            
+            @classmethod
+            def is_metabolic_filter_enabled(cls):
+                return False
+            
+            @classmethod 
+            def is_deduplication_enabled(cls):
+                return False
+        config = FallbackConfig()
+        logger.info("Using fallback metabolic filter configuration")
 
 # Database path - robust configuration for both local and container environments
 def get_database_path():
@@ -1078,21 +1102,29 @@ def get_articles_paginated_optimized(
             # Order clause - prioritize recent dates and subcategory diversity
             if sort_by.upper() == "DESC":
                 # Enhanced sorting: ensure subcategory diversity while prioritizing recent dates
-                order_clause = """ORDER BY 
+                current_date = datetime.now()
+                today_str = current_date.strftime('%Y-%m-%d')
+                yesterday_str = (current_date - timedelta(days=1)).strftime('%Y-%m-%d')
+                two_days_ago_str = (current_date - timedelta(days=2)).strftime('%Y-%m-%d')
+                three_days_ago_str = (current_date - timedelta(days=3)).strftime('%Y-%m-%d')
+                current_year = current_date.year
+                last_year = current_year - 1
+                
+                order_clause = f"""ORDER BY 
                     CASE 
                         WHEN subcategory != 'general' AND subcategory != '' THEN 1  -- All specific subcategories get priority
-                        WHEN date LIKE '%2025-08-08%' THEN 2
-                        WHEN date LIKE '%2025-08-07%' THEN 3
-                        WHEN date LIKE '%2025-08-06%' THEN 4
-                        WHEN date LIKE '%2025-08-05%' THEN 5
-                        WHEN date LIKE '%2025%' THEN 6
-                        WHEN date LIKE '%2024%' THEN 7
+                        WHEN date LIKE '%{today_str}%' THEN 2
+                        WHEN date LIKE '%{yesterday_str}%' THEN 3
+                        WHEN date LIKE '%{two_days_ago_str}%' THEN 4
+                        WHEN date LIKE '%{three_days_ago_str}%' THEN 5
+                        WHEN date LIKE '%{current_year}%' THEN 6
+                        WHEN date LIKE '%{last_year}%' THEN 7
                         ELSE 8
                     END ASC,
                     CASE 
-                        WHEN date LIKE '%2025-08-08%' OR date LIKE '%2025-08-07%' THEN 
+                        WHEN date LIKE '%{today_str}%' OR date LIKE '%{yesterday_str}%' THEN 
                             datetime(substr(date, 1, 19))
-                        WHEN date LIKE '%2025%' THEN 
+                        WHEN date LIKE '%{current_year}%' THEN 
                             datetime(date)
                         ELSE date
                     END DESC,
@@ -1407,9 +1439,13 @@ def get_articles_paginated_optimized(
                     articles = metabolic_filter.filter_articles(articles)
                     logger.info(f"📋 Articles after metabolic filtering: {len(articles)}")
                 elif config.is_deduplication_enabled():
-                    from .metabolic_filter import article_deduplicator
-                    articles = article_deduplicator.deduplicate_articles(articles)
-                    logger.info(f"📋 Articles after deduplication: {len(articles)}")
+                    try:
+                        from .metabolic_filter import article_deduplicator
+                        articles = article_deduplicator.deduplicate_articles(articles)
+                        logger.info(f"📋 Articles after deduplication: {len(articles)}")
+                    except ImportError:
+                        logger.info("Deduplication unavailable - using fallback (no filtering)")
+                        logger.info(f"📋 Articles after deduplication: {len(articles)}")
             else:
                 logger.info(f"📋 Filtering disabled - returning {len(articles)} raw articles")
             
@@ -1439,8 +1475,8 @@ def get_category_stats_cached() -> Dict[str, int]:
     """Get cached category statistics"""
     global _stats_cache, _cache_timestamp
     
-    # Cache for 1 minute only (reduced from 5 minutes for fresher data)
-    if _cache_timestamp and (datetime.now() - _cache_timestamp).seconds < 60:
+    # Cache for 30 seconds only (reduced from 60 seconds for fresher data)
+    if _cache_timestamp and (datetime.now() - _cache_timestamp).seconds < 30:
         return _stats_cache.get('categories', {})
     
     try:
@@ -1487,8 +1523,8 @@ def get_cached_stats() -> Dict:
     """Get cached general statistics"""
     global _stats_cache, _cache_timestamp
     
-    # Cache for 1 minute only (reduced from 5 minutes for fresher data)
-    if _cache_timestamp and (datetime.now() - _cache_timestamp).seconds < 60:
+    # Cache for 30 seconds only (reduced from 60 seconds for fresher data)
+    if _cache_timestamp and (datetime.now() - _cache_timestamp).seconds < 30:
         return _stats_cache.get('general', {})
     
     try:

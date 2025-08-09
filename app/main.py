@@ -255,6 +255,7 @@ def search_articles_base(
 
 @app.get("/category/{category}", response_model=PaginatedArticleResponse)
 def get_articles_by_category_base(
+    response: Response,
     category: str,
     page: int = Query(1, ge=1, description="Page number"),
     limit: int = Query(20, ge=1, le=100, description="Number of articles per page"),
@@ -273,6 +274,9 @@ def get_articles_by_category_base(
         
         logger.info(f"📊 Base Category '{category}' result: {result['total']} total articles, {len(result['articles'])} returned")
         
+        # Add no-cache headers for fresh data
+        add_no_cache_headers(response)
+        
         return PaginatedArticleResponse(**result)
     except Exception as e:
         logger.error(f"Error in get_articles_by_category_base: {e}")
@@ -280,6 +284,7 @@ def get_articles_by_category_base(
 
 @app.get("/tag/{tag}", response_model=PaginatedArticleResponse)
 def get_articles_by_tag_base(
+    response: Response,
     tag: str,
     page: int = Query(1, ge=1, description="Page number"),
     limit: int = Query(20, ge=1, le=100, description="Number of articles per page"),
@@ -297,6 +302,9 @@ def get_articles_by_tag_base(
         )
         
         logger.info(f"📊 Base Tag '{tag}' result: {result['total']} total articles, {len(result['articles'])} returned")
+        
+        # Add no-cache headers for fresh data
+        add_no_cache_headers(response)
         
         return PaginatedArticleResponse(**result)
     except Exception as e:
@@ -395,6 +403,7 @@ def search_articles_v1(
 
 @v1_router.get("/category/{category}", response_model=PaginatedArticleResponse)
 def get_articles_by_category_v1(
+    response: Response,
     category: str,
     page: int = Query(1, ge=1, description="Page number"),
     limit: int = Query(20, ge=1, le=100, description="Number of articles per page"),
@@ -412,6 +421,9 @@ def get_articles_by_category_v1(
         )
         
         logger.info(f"📊 V1 Category '{category}' result: {result['total']} total articles, {len(result['articles'])} returned")
+        
+        # Add no-cache headers for fresh data
+        add_no_cache_headers(response)
         
         return PaginatedArticleResponse(**result)
     except Exception as e:
