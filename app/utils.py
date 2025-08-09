@@ -1406,32 +1406,27 @@ def get_articles_paginated_optimized(
             
             # METABOLIC HEALTH FILTERING: Apply metabolic health filter and deduplication
             # Only apply filtering if enabled in configuration
-            if config.is_metabolic_filter_enabled() or config.is_deduplication_enabled():
-                logger.info(f"📋 Raw articles before filtering: {len(articles)}")
+            # if config.is_metabolic_filter_enabled() or config.is_deduplication_enabled():
+            #     logger.info(f"📋 Raw articles before filtering: {len(articles)}")
                 
-                # Apply filtering based on configuration
-                if config.is_metabolic_filter_enabled() and config.is_deduplication_enabled():
-                    articles = filter_and_deduplicate_articles(articles)
-                    logger.info(f"📋 Articles after metabolic filtering and deduplication: {len(articles)}")
-                elif config.is_metabolic_filter_enabled():
-                    articles = metabolic_filter.filter_articles(articles)
-                    logger.info(f"📋 Articles after metabolic filtering: {len(articles)}")
-                elif config.is_deduplication_enabled():
-                    try:
-                        from .metabolic_filter import article_deduplicator
-                        articles = article_deduplicator.deduplicate_articles(articles)
-                        logger.info(f"📋 Articles after deduplication: {len(articles)}")
-                    except ImportError:
-                        logger.info("Deduplication unavailable - using fallback (no filtering)")
-                        logger.info(f"📋 Articles after deduplication: {len(articles)}")
-            else:
-                logger.info(f"📋 Filtering disabled - returning {len(articles)} raw articles")
+            #     # Apply filtering based on configuration
+            #     if config.is_metabolic_filter_enabled() and config.is_deduplication_enabled():
+            #         articles = filter_and_deduplicate_articles(articles)
+            #         logger.info(f"📋 Articles after metabolic filtering and deduplication: {len(articles)}")
+            #     elif config.is_metabolic_filter_enabled():
+            #         articles = metabolic_filter.filter_articles(articles)
+            #         logger.info(f"📋 Articles after metabolic filtering: {len(articles)}")
+            #     elif config.is_deduplication_enabled():
+            #         try:
+            #             from .metabolic_filter import article_deduplicator
+            #             articles = article_deduplicator.deduplicate_articles(articles)
+            #             logger.info(f"📋 Articles after deduplication: {len(articles)}")
+            #         except ImportError:
+            #             logger.info("Deduplication unavailable - using fallback (no filtering)")
+            #             logger.info(f"📋 Articles after deduplication: {len(articles)}")
+            # else:
+            #     logger.info(f"📋 Filtering disabled - returning {len(articles)} raw articles")
             
-            # Get latest article timestamp
-            cursor.execute("SELECT MAX(created_at) FROM articles")
-            last_updated_str = cursor.fetchone()[0]
-            last_updated = datetime.fromisoformat(last_updated_str.replace('Z', '+00:00')) if last_updated_str else None
-
             return {
                 "articles": articles,
                 "total": total,
@@ -1439,8 +1434,7 @@ def get_articles_paginated_optimized(
                 "limit": limit,
                 "total_pages": total_pages,
                 "has_next": page < total_pages,
-                "has_previous": page > 1,
-                "last_updated": last_updated
+                "has_previous": page > 1
             }
             
     except Exception as e:
@@ -1452,8 +1446,7 @@ def get_articles_paginated_optimized(
             "limit": limit,
             "total_pages": 0,
             "has_next": False,
-            "has_previous": False,
-            "last_updated": None
+            "has_previous": False
         }
 
 def get_category_stats_cached() -> Dict[str, int]:
