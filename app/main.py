@@ -57,6 +57,15 @@ def start_scheduler_in_thread():
 async def startup_event():
     """Initialize the application and start background scheduler in a separate thread"""
     logger.info("🚀 Starting Metabolical Backend API...")
+    
+    # Clear all caches and refresh connections on startup to ensure fresh data
+    try:
+        clear_all_caches()
+        force_refresh_connection()
+        logger.info("🗑️ All caches cleared and connections refreshed on startup for fresh data")
+    except Exception as e:
+        logger.warning(f"⚠️ Could not clear caches on startup: {e}")
+    
     # Check database initialization
     try:
         article_count = get_total_articles_count()
@@ -153,6 +162,22 @@ def get_cors_origins() -> List[str]:
 # Middleware
 app.add_middleware(GZipMiddleware, minimum_size=1000)
 
+# Add middleware to ensure no-cache headers on all responses
+from fastapi import Request
+from starlette.middleware.base import BaseHTTPMiddleware
+
+class NoCacheMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        response = await call_next(request)
+        # Add no-cache headers to all API responses
+        if request.url.path.startswith("/api/") or request.url.path in ["/search", "/category", "/tag"]:
+            response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate, max-age=0, private"
+            response.headers["Pragma"] = "no-cache"
+            response.headers["Expires"] = "0"
+        return response
+
+app.add_middleware(NoCacheMiddleware)
+
 # Get CORS origins
 cors_origins = get_cors_origins()
 
@@ -172,7 +197,7 @@ app.add_middleware(
         "Cache-Control"
     ],
     expose_headers=["Content-Length", "X-Total-Count"],
-    max_age=60,  # Cache preflight requests for 1 minute only (reduced from 1 hour)
+    max_age=0,  # Disable preflight cache for fresh data
 )
 
 # Load categories on startup
@@ -217,9 +242,11 @@ class HealthResponse(BaseModel):
 # Helper function to add no-cache headers
 def add_no_cache_headers(response: Response):
     """Add headers to prevent caching of API responses"""
-    response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate, max-age=0"
+    response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate, max-age=0, private"
     response.headers["Pragma"] = "no-cache"
     response.headers["Expires"] = "0"
+    response.headers["Last-Modified"] = "0"
+    response.headers["ETag"] = ""
     return response
 
 # =============================================
@@ -347,6 +374,7 @@ def api_v1_root():
 
 @v1_router.get("/articles/search", response_model=PaginatedArticleResponse)
 def search_articles_v1_articles(
+    response: Response,
     q: str = Query(..., description="Search query", min_length=2),
     page: int = Query(1, ge=1, description="Page number"),
     limit: int = Query(20, ge=1, le=100, description="Number of articles per page"),
@@ -368,6 +396,9 @@ def search_articles_v1_articles(
         )
         
         logger.info(f"📊 V1 Articles Search '{q}' result: {result['total']} total, {len(result['articles'])} returned")
+        
+        # Add no-cache headers for fresh data
+        add_no_cache_headers(response)
         
         return PaginatedArticleResponse(**result)
     except Exception as e:
@@ -438,6 +469,7 @@ def get_articles_by_category_v1(
 
 @v1_router.get("/tag/{tag}", response_model=PaginatedArticleResponse)
 def get_articles_by_tag_v1(
+    response: Response,
     tag: str,
     page: int = Query(1, ge=1, description="Page number"),
     limit: int = Query(20, ge=1, le=100, description="Number of articles per page"),
@@ -455,6 +487,9 @@ def get_articles_by_tag_v1(
         )
         
         logger.info(f"📊 V1 Tag '{tag}' result: {result['total']} total articles, {len(result['articles'])} returned")
+        
+        # Add no-cache headers for fresh data
+        add_no_cache_headers(response)
         
         return PaginatedArticleResponse(**result)
     except Exception as e:
@@ -857,6 +892,21 @@ def get_stats():
     except Exception as e:
         logger.error(f"Error getting stats: {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
+
+@v1_router.post("/clear-cache")
+def clear_cache():
+    """Clear all application caches and refresh connections for fresh data"""
+    try:
+        clear_all_caches()
+        force_refresh_connection()
+        return {
+            "status": "success",
+            "message": "All caches cleared and connections refreshed successfully",
+            "timestamp": datetime.now()
+        }
+    except Exception as e:
+        logger.error(f"Error clearing caches: {e}")
+        raise HTTPException(status_code=500, detail="Failed to clear caches")
 
 # Include V1 router
 app.include_router(v1_router)

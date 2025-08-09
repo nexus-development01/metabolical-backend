@@ -808,7 +808,8 @@ class SQLiteConnectionPool:
             conn = sqlite3.connect(self.database, timeout=30.0, check_same_thread=False)
             conn.execute("PRAGMA journal_mode=WAL")
             conn.execute("PRAGMA synchronous=NORMAL")
-            conn.execute("PRAGMA cache_size=10000")
+            conn.execute("PRAGMA cache_size=0")  # Disable SQLite cache for fresh data
+            conn.execute("PRAGMA query_only=0")  # Ensure fresh queries
             conn.row_factory = sqlite3.Row  # Enable column access by name
             
             yield conn
@@ -908,12 +909,23 @@ def clear_all_caches():
     _cache_timestamp = None
     logger.info("🗑️ All application caches cleared")
 
+def force_refresh_connection():
+    """Force refresh database connection to ensure fresh data"""
+    global connection_pool
+    try:
+        # Create a new connection pool instance to force fresh connections
+        connection_pool = SQLiteConnectionPool(DB_PATH)
+        logger.info("🔄 Database connection pool refreshed")
+    except Exception as e:
+        logger.error(f"❌ Failed to refresh connection pool: {e}")
+
 def get_cached_category_keywords() -> Dict:
-    """Load and cache category keywords from YAML file"""
+    """Load category keywords from YAML file - Cache disabled for fresh data"""
     global _category_cache
     
-    if _category_cache:
-        return _category_cache
+    # Cache disabled - always reload fresh data
+    # if _category_cache:
+    #     return _category_cache
         
     try:
         if CATEGORY_YAML_PATH.exists():
@@ -1450,12 +1462,12 @@ def get_articles_paginated_optimized(
         }
 
 def get_category_stats_cached() -> Dict[str, int]:
-    """Get cached category statistics"""
+    """Get category statistics - Cache disabled for fresh data"""
     global _stats_cache, _cache_timestamp
     
-    # Cache for 30 seconds only (reduced from 60 seconds for fresher data)
-    if _cache_timestamp and (datetime.now() - _cache_timestamp).seconds < 30:
-        return _stats_cache.get('categories', {})
+    # Cache disabled - always fetch fresh data
+    # if _cache_timestamp and (datetime.now() - _cache_timestamp).seconds < 30:
+    #     return _stats_cache.get('categories', {})
     
     try:
         with connection_pool.get_connection() as conn:
@@ -1498,12 +1510,12 @@ def get_category_stats_cached() -> Dict[str, int]:
         return {}
 
 def get_cached_stats() -> Dict:
-    """Get cached general statistics"""
+    """Get general statistics - Cache disabled for fresh data"""
     global _stats_cache, _cache_timestamp
     
-    # Cache for 30 seconds only (reduced from 60 seconds for fresher data)
-    if _cache_timestamp and (datetime.now() - _cache_timestamp).seconds < 30:
-        return _stats_cache.get('general', {})
+    # Cache disabled - always fetch fresh data
+    # if _cache_timestamp and (datetime.now() - _cache_timestamp).seconds < 30:
+    #     return _stats_cache.get('general', {})
     
     try:
         with connection_pool.get_connection() as conn:
