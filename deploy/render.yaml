@@ -1,0 +1,49 @@
+services:
+  - type: web
+    name: metabolical-backend
+    env: docker
+    repo: https://github.com/ankit21311/METABOLIC_BACKEND
+    branch: main
+    dockerfilePath: ./Dockerfile
+    envVars:
+      - key: PORT
+        value: 8000
+      - key: HOST
+        value: 0.0.0.0
+      - key: PYTHONUNBUFFERED
+        value: 1
+      - key: RENDER
+        value: true
+      - key: LOG_LEVEL
+        value: INFO
+      - key: SCRAPE_INTERVAL_HOURS
+        value: 4
+      - key: ENABLE_METABOLIC_FILTER
+        value: false
+      - key: ENABLE_DEDUPLICATION
+        value: true
+      - key: DATABASE_PATH
+        value: /app/data/articles.db
+      - key: CORS_ORIGINS
+        value: "https://metabolical.in,https://www.metabolical.in,https://localhost:3000,http://localhost:3000,https://localhost:5173,http://localhost:5173"
+      # Additional performance optimizations
+      - key: DB_CONNECTION_POOL_SIZE
+        value: 10
+      - key: API_RESPONSE_CACHE_TTL
+        value: 300
+      - key: WORKER_PROCESSES
+        value: 2
+    healthCheckPath: /api/v1/health
+    plan: starter  # Change to 'standard' or higher for production
+    autoDeploy: true
+    # Health check configuration - optimized for your endpoints
+    healthCheckTimeout: 30
+    healthCheckInterval: 300  # Check every 5 minutes
+    # Automatic restarts if unhealthy
+    restartPolicy: always
+    # Performance optimizations
+    maxSurge: 1
+    maxUnavailable: 0
+    # Environment-specific settings
+    buildCommand: "pip install -r requirements.txt"
+    startCommand: "python run.py"

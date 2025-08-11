@@ -1,0 +1,738 @@
+# Unified Health Categories Configuration
+# Enhanced with Metabolic Health Focus - Combines all category keywords with metabolic health priority
+
+# 🔬 METABOLIC DISEASES (Primary Focus)
+diseases:
+  metabolic_diseases:
+  - "metabolic diseases"
+  - "metabolic syndrome"
+  - "obesity"
+  - "type 2 diabetes"
+  - "insulin resistance"
+  - "hypertension"
+  - "hyperlipidemia"
+  - "non-alcoholic fatty liver disease"
+  - "nafld"
+  - "cardiometabolic disorders"
+  - "mitochondrial dysfunction"
+  - "endocrine disruption"
+  - "syndrome x"
+  - "metabolic disorder"
+  - "glucose intolerance"
+  - "insulin sensitivity"
+  - "lipid disorders"
+  - "fatty liver"
+
+  diabetes:
+  - "diabetes"
+  - "blood sugar"
+  - "insulin"
+  - "glucose"
+  - "diabetic"
+  - "hyperglycemia"
+  - "hypoglycemia"
+  - "type 1 diabetes"
+  - "type 2 diabetes"
+  - "gestational diabetes"
+  - "diabetic complications"
+  - "blood glucose"
+  - "insulin resistance"
+  - "prediabetes"
+  - "glucose metabolism"
+  - "glycemic index"
+  - "glycemic load"
+  - "insulin spike"
+
+  cardiovascular:
+  - "heart disease"
+  - "cardiovascular"
+  - "cardiac"
+  - "heart attack"
+  - "stroke"
+  - "hypertension"
+  - "high blood pressure"
+  - "coronary"
+  - "artery"
+  - "cholesterol"
+  - "heart failure"
+  - "atrial fibrillation"
+  - "angina"
+  - "heart rhythm"
+  - "cardiology"
+  - "cardiometabolic"
+
+  obesity:
+  - "obesity"
+  - "overweight"
+  - "weight management"
+  - "bmi"
+  - "body mass index"
+  - "adipose"
+  - "fat"
+  - "bariatric"
+  - "weight loss"
+  - "weight gain"
+
+  liver_disease:
+  - "liver disease"
+  - "fatty liver"
+  - "nafld"
+  - "non-alcoholic fatty liver disease"
+  - "hepatic"
+  - "liver function"
+  - "hepatitis"
+  - "cirrhosis"
+  - "liver enzymes"
+
+# ⚙️ METABOLISM (General Focus)
+metabolism:
+  general:
+  - "basal metabolic rate"
+  - "bmr"
+  - "energy homeostasis"
+  - "anabolism"
+  - "catabolism"
+  - "glucose metabolism"
+  - "lipid metabolism"
+  - "protein metabolism"
+  - "nutrient absorption"
+  - "hormonal regulation"
+  - "gut microbiota"
+  - "metabolism"
+  - "metabolic rate"
+  - "energy expenditure"
+  - "caloric metabolism"
+  - "nutrient metabolism"
+  - "cellular metabolism"
+  - "enzymatic processes"
+  - "biochemical pathways"
+  - "energy production"
+  - "metabolic pathways"
+
+  hormones:
+  - "hormone"
+  - "hormonal"
+  - "endocrine"
+  - "insulin"
+  - "cortisol"
+  - "thyroid"
+  - "growth hormone"
+  - "leptin"
+  - "ghrelin"
+  - "adiponectin"
+  - "testosterone"
+  - "estrogen"
+  - "endocrine disruption"
+
+# 🥗 FOOD & NUTRITION (Metabolic Focus)
+nutrition:
+  macronutrients:
+  - "macronutrients"
+  - "carbohydrates"
+  - "proteins"
+  - "fats"
+  - "lipids"
+  - "amino acids"
+  - "fatty acids"
+  - "complex carbohydrates"
+  - "simple carbohydrates"
+
+  micronutrients:
+  - "micronutrients"
+  - "vitamins"
+  - "minerals"
+  - "antioxidants"
+  - "phytonutrients"
+  - "trace elements"
+  - "vitamin d"
+  - "vitamin b12"
+  - "iron"
+  - "magnesium"
+  - "zinc"
+
+  food_quality:
+  - "nutrient deficiency"
+  - "overnutrition"
+  - "dietary patterns"
+  - "processed foods"
+  - "ultra-processed foods"
+  - "caloric intake"
+  - "glycemic index"
+  - "dietary fiber"
+  - "probiotics"
+  - "prebiotics"
+  - "whole foods"
+  - "organic"
+  - "natural foods"
+
+  sugar_sweeteners:
+  - "added sugars"
+  - "high-fructose corn syrup"
+  - "refined carbohydrates"
+  - "artificial sweeteners"
+  - "sugar-sweetened beverages"
+  - "insulin spike"
+  - "fructose metabolism"
+  - "glycemic load"
+  - "sugar addiction"
+  - "hidden sugars"
+  - "refined sugar"
+  - "corn syrup"
+  - "sucrose"
+  - "fructose"
+
+# 🌾 AGRICULTURE (Environmental Metabolic Impact)
+agriculture:
+  industrial_agriculture:
+  - "agrochemicals"
+  - "pesticide residues"
+  - "gmos"
+  - "genetically modified organisms"
+  - "monoculture"
+  - "soil degradation"
+  - "crop diversity"
+  - "food security"
+  - "agroecology"
+  - "organic farming"
+  - "livestock emissions"
+  - "agro-industrial processing"
+  - "pesticides"
+  - "herbicides"
+  - "chemical fertilizers"
+
+  sustainable_farming:
+  - "sustainable agriculture"
+  - "regenerative farming"
+  - "permaculture"
+  - "biodynamic"
+  - "local food systems"
+  - "farm to table"
+  - "seasonal eating"
+
+# 🌫️ ENVIRONMENTAL HEALTH (Metabolic Connection)
+environmental_health:
+  air_pollution:
+  - "air pollution"
+  - "particulate matter"
+  - "pm2.5"
+  - "oxidative stress"
+  - "inflammation"
+  - "endocrine-disrupting chemicals"
+  - "edcs"
+  - "metabolic dysregulation"
+  - "respiratory-metabolic link"
+  - "urban smog"
+  - "toxic air exposure"
+  - "environmental toxins"
+  - "air quality"
+  - "pollutants"
+
+  water_pollution:
+  - "water pollution"
+  - "heavy metals"
+  - "lead"
+  - "mercury"
+  - "nitrate contamination"
+  - "microplastics"
+  - "pesticide runoff"
+  - "endocrine disruptors"
+  - "toxic algal blooms"
+  - "drinking water safety"
+  - "bioaccumulation"
+  - "industrial effluents"
+  - "water contamination"
+  - "water quality"
+  - "chemical pollutants"
+
+# Traditional Categories (Updated for Metabolic Context)
+fitness:
+  exercise:
+  - "exercise"
+  - "workout"
+  - "fitness"
+  - "training"
+  - "gym"
+  - "cardio"
+  - "strength training"
+  - "yoga"
+  - "pilates"
+  - "running"
+  - "walking"
+  - "swimming"
+  - "physical activity"
+  - "metabolic exercise"
+  - "high intensity interval training"
+  - "hiit"
+
+  sports:
+  - "sports"
+  - "athletic"
+  - "sports medicine"
+  - "injury prevention"
+  - "recovery"
+  - "performance"
+  - "endurance"
+
+lifestyle:
+  wellness:
+  - "wellness"
+  - "healthy lifestyle"
+  - "self care"
+  - "mindfulness"
+  - "meditation"
+  - "stress management"
+  - "work life balance"
+  - "sleep"
+  - "rest"
+  - "circadian rhythm"
+  - "sleep quality"
+
+  prevention:
+  - "prevention"
+  - "preventive care"
+  - "screening"
+  - "early detection"
+  - "checkup"
+  - "health screening"
+  - "immunization"
+  - "vaccination"
+  - "lifestyle medicine"
+
+# FRONTEND MENU STRUCTURE MAPPINGS
+# These categories match the frontend menu array exactly
+
+# News subcategories
+news:
+  latest:
+  - "breaking"
+  - "recent"
+  - "new study"
+  - "latest research"
+  - "update"
+  - "announced"
+  - "today"
+  - "current"
+
+  govt_schemes:
+  - "government scheme"
+  - "govt scheme"
+  - "ayushman bharat"
+  - "pradhan mantri"
+  - "cghs"
+  - "health scheme"
+  - "public health scheme"
+  - "national health"
+  - "health insurance"
+  - "jan arogya"
+  - "health card"
+  - "beneficiary"
+
+# Additional disease subcategories missing from frontend
+diseases:
+  inflammation:
+  - "inflammation"
+  - "inflammatory"
+  - "immune response"
+  - "cytokine"
+  - "autoimmune"
+  - "arthritis"
+  - "rheumatoid"
+  - "inflammatory bowel"
+
+  thyroid:
+  - "thyroid"
+  - "hypothyroid"
+  - "hyperthyroid"
+  - "thyroid gland"
+  - "thyroid hormone"
+  - "tsh"
+  - "thyroxine"
+  - "goiter"
+
+  sleep_disorders:
+  - "sleep disorder"
+  - "insomnia"
+  - "sleep apnea"
+  - "narcolepsy"
+  - "restless leg"
+  - "sleep study"
+
+  skin:
+  - "skin"
+  - "dermatology"
+  - "dermatitis"
+  - "acne"
+  - "eczema"
+  - "psoriasis"
+  - "melanoma"
+  - "skin cancer"
+  - "rash"
+
+  eyes_and_ears:
+  - "eyes"
+  - "vision"
+  - "hearing"
+  - "ear"
+  - "ophthalmology"
+  - "optical"
+  - "auditory"
+  - "glaucoma"
+  - "cataract"
+  - "tinnitus"
+
+  reproductive_health:
+  - "reproductive health"
+  - "fertility"
+  - "pregnancy"
+  - "maternal health"
+  - "gynecology"
+  - "obstetrics"
+  - "contraception"
+  - "menstrual"
+
+# Solutions subcategories
+solutions:
+  nutrition:
+  - "nutrition"
+  - "diet"
+  - "dietary"
+  - "nutritional"
+  - "supplement"
+  - "vitamin"
+  - "mineral"
+  - "eating habits"
+
+  fitness:
+  - "fitness"
+  - "exercise"
+  - "workout"
+  - "physical activity"
+  - "training"
+  - "gym"
+  - "sports"
+
+  lifestyle:
+  - "lifestyle"
+  - "life style"
+  - "health habits"
+  - "daily routine"
+  - "behavior change"
+  - "habit"
+
+# Food subcategories
+food:
+  natural_food:
+  - "natural food"
+  - "whole food"
+  - "unprocessed"
+  - "farm fresh"
+  - "raw food"
+  - "fresh produce"
+
+  organic_food:
+  - "organic food"
+  - "organic"
+  - "pesticide free"
+  - "chemical free"
+  - "organic farming"
+  - "certified organic"
+
+  processed_food:
+  - "processed food"
+  - "ultra processed"
+  - "packaged food"
+  - "artificial"
+  - "preservatives"
+  - "fast food"
+  - "junk food"
+
+  fish_and_seafood:
+  - "fish"
+  - "seafood"
+  - "omega"
+  - "marine"
+  - "salmon"
+  - "tuna"
+  - "shellfish"
+  - "fish oil"
+
+  food_safety:
+  - "food safety"
+  - "foodborne"
+  - "contamination"
+  - "food hygiene"
+  - "food poisoning"
+  - "food recall"
+
+# Additional audience subcategories
+audience:
+  teenagers:
+  - "teenager"
+  - "adolescent"
+  - "teen"
+  - "young adult"
+  - "puberty"
+  - "teenage"
+  - "high school"
+
+  seniors:
+  - "senior"
+  - "elderly"
+  - "geriatric"
+  - "aging"
+  - "old age"
+  - "retirement"
+  - "older adult"
+
+  athletes:
+  - "athlete"
+  - "sports performance"
+  - "athletic performance"
+  - "competition"
+  - "professional sports"
+  - "olympic"
+
+  families:
+  - "family"
+  - "household"
+  - "parenting"
+  - "family health"
+  - "household health"
+  - "family planning"
+
+# Trending subcategories
+trending:
+  gut_health:
+  - "gut health"
+  - "microbiome"
+  - "digestive health"
+  - "intestinal health"
+  - "probiotic"
+  - "gut bacteria"
+  - "digestive system"
+
+  addiction:
+  - "addiction"
+  - "substance abuse"
+  - "dependency"
+  - "alcoholism"
+  - "drug abuse"
+  - "smoking cessation"
+  - "gambling addiction"
+
+  sexual_wellness:
+  - "sexual wellness"
+  - "sexual health"
+  - "sexuality"
+  - "libido"
+  - "intimate health"
+  - "sexual dysfunction"
+
+audience:
+  women:
+  - "women's health"
+  - "female health"
+  - "pregnancy"
+  - "maternal health"
+  - "menopause"
+  - "menstruation"
+  - "reproductive health"
+  - "birth control"
+  - "fertility"
+  - "gynecology"
+  - "obstetrics"
+  - "prenatal"
+  - "postpartum"
+  - "pcos"
+  - "polycystic ovary syndrome"
+
+  men:
+  - "men's health"
+  - "male health"
+  - "men health"
+  - "prostate"
+  - "testosterone"
+  - "erectile dysfunction"
+  - "impotence"
+  - "male fertility"
+  - "sperm count"
+  - "sperm health"
+  - "testicular"
+  - "testicular cancer"
+  - "prostate cancer"
+  - "male pattern baldness"
+  - "hair loss men"
+  - "baldness"
+  - "male hormones"
+  - "low-t"
+  - "low testosterone"
+  - "andropause"
+  - "male menopause"
+
+  children:
+  - "pediatric"
+  - "children's health"
+  - "kids health"
+  - "child development"
+  - "adolescent"
+  - "teenager"
+  - "infant"
+  - "newborn"
+  - "vaccination schedule"
+  - "child nutrition"
+  - "childhood obesity"
+  - "pediatric diabetes"
+
+  elderly:
+  - "elderly"
+  - "senior health"
+  - "aging"
+  - "geriatric"
+  - "retirement health"
+  - "senior care"
+  - "age related"
+  - "healthy aging"
+  - "longevity"
+
+# Traditional medical categories
+cancer:
+  - "cancer"
+  - "tumor"
+  - "oncology"
+  - "chemotherapy"
+  - "radiation therapy"
+  - "malignant"
+  - "benign"
+  - "carcinoma"
+  - "leukemia"
+  - "lymphoma"
+  - "metastasis"
+  - "breast cancer"
+  - "lung cancer"
+  - "prostate cancer"
+  - "skin cancer"
+
+respiratory:
+  - "asthma"
+  - "copd"
+  - "pneumonia"
+  - "bronchitis"
+  - "lung disease"
+  - "respiratory"
+  - "breathing"
+  - "tuberculosis"
+  - "covid"
+  - "influenza"
+  - "flu"
+
+mental_health:
+  - "depression"
+  - "anxiety"
+  - "mental health"
+  - "bipolar"
+  - "schizophrenia"
+  - "ptsd"
+  - "stress"
+  - "panic disorder"
+  - "therapy"
+  - "counseling"
+  - "psychology"
+  - "psychiatry"
+
+neurological:
+  - "alzheimer"
+  - "dementia"
+  - "parkinson"
+  - "epilepsy"
+  - "migraine"
+  - "headache"
+  - "neurological"
+  - "brain"
+  - "nervous system"
+  - "multiple sclerosis"
+
+international_health:
+  medical_journals:
+  - "journal"
+  - "research paper"
+  - "study"
+  - "clinical trial"
+  - "medical journal"
+  - "lancet"
+  - "bmj"
+  - "nejm"
+  - "nature medicine"
+  - "jama"
+  - "scientific publication"
+  - "peer-reviewed"
+  - "medicine publication"
+  
+  global_health_organizations:
+  - "world health organization"
+  - "who"
+  - "unicef"
+  - "red cross"
+  - "doctors without borders"
+  - "médecins sans frontières"
+  - "msf"
+  - "united nations"
+  - "global health"
+  - "international health"
+  - "pandemic"
+  - "epidemic"
+  - "public health emergency"
+
+  regional_health:
+  - "indian health"
+  - "ayurveda"
+  - "traditional medicine"
+  - "herbal medicine"
+  - "alternative medicine"
+  - "complementary medicine"
+  - "homeopathy"
+  - "acupuncture"
+
+healthcare_system:
+  providers:
+  - "doctor"
+  - "physician"
+  - "nurse"
+  - "hospital"
+  - "clinic"
+  - "medical center"
+  - "healthcare provider"
+  - "specialist"
+  - "surgeon"
+  - "primary care"
+
+  technology:
+  - "telemedicine"
+  - "digital health"
+  - "health tech"
+  - "medical device"
+  - "health app"
+  - "wearable"
+  - "fitness tracker"
+  - "electronic health record"
+  - "ehr"
+
+policy:
+  public_health:
+  - "health policy"
+  - "healthcare reform"
+  - "public health"
+  - "health insurance"
+  - "medicare"
+  - "medicaid"
+  - "health coverage"
+  - "health equity"
+  - "health disparities"
+
+  regulation:
+  - "fda"
+  - "food and drug administration"
+  - "health regulation"
+  - "medical approval"
+  - "drug safety"
+  - "clinical guidelines"
+  - "health standards"

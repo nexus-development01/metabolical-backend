@@ -1,0 +1,41 @@
+version: '3.8'
+
+services:
+  metabolical-backend:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      - PORT=8000
+      - HOST=0.0.0.0
+      - PYTHONUNBUFFERED=1
+      - RENDER=false
+      - DATABASE_PATH=/app/data/articles.db
+      - ENABLE_METABOLIC_FILTER=false
+      - ENABLE_DEDUPLICATION=true
+      - CORS_ORIGINS=https://metabolical.in,https://www.metabolical.in,https://localhost:3000,https://localhost:5173,http://127.0.0.1:5173
+      - LOG_LEVEL=info
+      - WORKERS=2
+    volumes:
+      # Mount the database directory for persistence in local testing
+      - ./data:/app/data
+    healthcheck:
+      test: ["CMD", "python", "-c", "import requests; requests.get('http://localhost:8000/api/v1/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+
+  # Optional: Add a reverse proxy for production-like setup
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - metabolical-backend
+    restart: unless-stopped
+    profiles:
+      - with-proxy
