@@ -133,6 +133,153 @@ class HealthScraper:
                 "category": "news",
                 "tags": ["medical", "research"],
                 "priority": 3
+            },
+            
+            # Additional Major News Outlets
+            {
+                "name": "NPR Health",
+                "url": "https://feeds.npr.org/1001/rss.xml",
+                "category": "news",
+                "tags": ["npr", "health", "research"],
+                "priority": 2
+            },
+            
+            # Medical & Scientific Sources
+            {
+                "name": "Medical Xpress",
+                "url": "https://medicalxpress.com/rss-feed/",
+                "category": "news",
+                "tags": ["medical", "research", "science"],
+                "priority": 2
+            },
+            {
+                "name": "ScienceDaily Health",
+                "url": "https://www.sciencedaily.com/rss/health_medicine.xml",
+                "category": "news",
+                "tags": ["science", "research", "medical"],
+                "priority": 2
+            },
+            {
+                "name": "ScienceDaily Environmental Health",
+                "url": "https://www.sciencedaily.com/rss/health_medicine/environmental_health.xml",
+                "category": "trending",
+                "tags": ["environment", "health", "research"],
+                "priority": 2
+            },
+            
+            # Academic & Research Sources
+            {
+                "name": "EurekAlert Health",
+                "url": "https://www.eurekalert.org/rss/health_medicine.xml",
+                "category": "news",
+                "tags": ["research", "academic", "health"],
+                "priority": 2
+            },
+            {
+                "name": "EurekAlert Environment",
+                "url": "https://www.eurekalert.org/rss/environment.xml",
+                "category": "trending",
+                "tags": ["environment", "research", "academic"],
+                "priority": 3
+            },
+            {
+                "name": "Harvard Nutrition Source",
+                "url": "https://www.hsph.harvard.edu/nutritionsource/feed/",
+                "category": "food",
+                "tags": ["harvard", "nutrition", "research"],
+                "priority": 1
+            },
+            {
+                "name": "The Conversation Health",
+                "url": "https://theconversation.com/global/health/articles.atom",
+                "category": "news",
+                "tags": ["academic", "health", "research"],
+                "priority": 2
+            },
+            
+            # Specialized Metabolic Health Sources
+            {
+                "name": "Diabetes Research News",
+                "url": "https://www.sciencedaily.com/rss/health_medicine/diabetes.xml",
+                "category": "diseases",
+                "tags": ["diabetes", "research", "metabolic"],
+                "priority": 1
+            },
+            {
+                "name": "Obesity Research News",
+                "url": "https://www.sciencedaily.com/rss/health_medicine/obesity.xml",
+                "category": "diseases",
+                "tags": ["obesity", "research", "metabolic"],
+                "priority": 1
+            },
+            {
+                "name": "Nutrition Research News",
+                "url": "https://www.sciencedaily.com/rss/health_medicine/nutrition.xml",
+                "category": "food",
+                "tags": ["nutrition", "research", "science"],
+                "priority": 1
+            },
+            
+            # Nutrition & Food Sources
+            {
+                "name": "Food Navigator",
+                "url": "https://www.foodnavigator.com/rssfeed/latest",
+                "category": "food",
+                "tags": ["food", "industry", "nutrition"],
+                "priority": 3
+            },
+            {
+                "name": "Food Navigator USA",
+                "url": "https://www.foodnavigator-usa.com/rssfeed/latest",
+                "category": "food",
+                "tags": ["food", "industry", "nutrition", "usa"],
+                "priority": 3
+            },
+            {
+                "name": "Civil Eats",
+                "url": "https://civileats.com/feed/",
+                "category": "food",
+                "tags": ["food", "sustainability", "agriculture"],
+                "priority": 3
+            },
+            {
+                "name": "FAO News",
+                "url": "https://www.fao.org/news/rss-feed/en/",
+                "category": "food",
+                "tags": ["fao", "agriculture", "food_security"],
+                "priority": 3
+            },
+            
+            # Agriculture & Food Policy Sources
+            {
+                "name": "AgFunder News",
+                "url": "https://agfundernews.com/feed/",
+                "category": "food",
+                "tags": ["agriculture", "technology", "funding"],
+                "priority": 4
+            },
+            
+            # Environment & Pollution Sources
+            {
+                "name": "Environmental Health News",
+                "url": "https://www.ehn.org/rss.xml",
+                "category": "trending",
+                "tags": ["environment", "health", "pollution"],
+                "priority": 2
+            },
+            {
+                "name": "Inside Climate News",
+                "url": "https://insideclimatenews.org/feed/",
+                "category": "trending",
+                "tags": ["climate", "environment", "health"],
+                "priority": 3
+            },
+            {
+                "name": "National Geographic Environment",
+                "url": "https://www.nationalgeographic.com/pages/topic/planet-possible/feed/",
+                "category": "trending",
+                "tags": ["environment", "climate", "sustainability"],
+                "priority": 4
             }
         ]
         
@@ -141,7 +288,12 @@ class HealthScraper:
             "health", "medical", "wellness", "nutrition", "fitness", "disease", 
             "vaccine", "therapy", "treatment", "prevention", "mental health",
             "diabetes", "cancer", "heart disease", "obesity", "covid",
-            "healthcare", "public health", "medicine", "research"
+            "healthcare", "public health", "medicine", "research",
+            # Metabolic health specific keywords
+            "metabolic syndrome", "insulin resistance", "type 2 diabetes", 
+            "obesity epidemic", "processed foods", "gut microbiome", 
+            "endocrine disruptors", "food security", "sustainable agriculture",
+            "organic food", "environmental health", "nutrition research"
         ]
         
         # Social media and alternative sources
@@ -242,7 +394,7 @@ class HealthScraper:
                     
                     if title and link:
                         # Parse date
-                        parsed_date = self._parse_date(pub_date)
+                        parsed_date = self._parse_date(pub_date or "")
                         
                         # Clean description
                         if description:
@@ -269,9 +421,28 @@ class HealthScraper:
     def _get_text(self, element, tag_names: List[str]) -> Optional[str]:
         """Get text from first available tag"""
         for tag_name in tag_names:
-            elem = element.find(tag_name) or element.find(f'.//{tag_name}')
-            if elem is not None and elem.text:
-                return elem.text.strip()
+            try:
+                # Handle namespaced tags
+                if ':' in tag_name:
+                    namespace_map = {
+                        'dc': 'http://purl.org/dc/elements/1.1/',
+                        'content': 'http://purl.org/rss/1.0/modules/content/'
+                    }
+                    elem = element.find(tag_name, namespace_map)
+                else:
+                    elem = element.find(tag_name) or element.find(f'.//{tag_name}')
+                
+                if elem is not None and elem.text:
+                    return elem.text.strip()
+            except Exception:
+                # Try without namespace if namespaced search fails
+                try:
+                    simple_tag = tag_name.split(':')[-1]  # Get tag without namespace
+                    elem = element.find(simple_tag) or element.find(f'.//{simple_tag}')
+                    if elem is not None and elem.text:
+                        return elem.text.strip()
+                except Exception:
+                    continue
         return None
     
     def _parse_date(self, date_str: str) -> datetime:
@@ -313,12 +484,60 @@ class HealthScraper:
         return text.strip()
     
     def categorize_article(self, article: Dict) -> Tuple[str, List[str]]:
-        """Smart categorization based on title and content"""
+        """Smart categorization based on title and content using category keywords"""
         title = article.get('title', '').lower()
         summary = article.get('summary', '').lower()
         content = title + ' ' + summary
         
-        # Category mapping
+        # Load category keywords
+        try:
+            import yaml
+            from pathlib import Path
+            config_path = Path(__file__).parent.parent / "config" / "category_keywords.yml"
+            with open(config_path, 'r', encoding='utf-8') as f:
+                categories = yaml.safe_load(f)
+        except Exception as e:
+            logger.warning(f"Could not load category keywords: {e}")
+            # Fallback to basic categorization
+            return self._basic_categorization(content)
+        
+        # Find best matching category and subcategories
+        best_category = 'news'
+        best_subcategories = []
+        max_matches = 0
+        
+        for category_name, subcategories in categories.items():
+            category_matches = 0
+            matched_subcategories = []
+            
+            for subcategory_name, keywords in subcategories.items():
+                subcategory_matches = 0
+                for keyword in keywords:
+                    if keyword.lower() in content:
+                        subcategory_matches += 1
+                
+                if subcategory_matches > 0:
+                    matched_subcategories.append(subcategory_name.replace('_', ' '))
+                    category_matches += subcategory_matches
+            
+            if category_matches > max_matches:
+                max_matches = category_matches
+                best_category = category_name
+                best_subcategories = matched_subcategories
+        
+        # Ensure we have at least basic tags
+        if not best_subcategories:
+            if any(word in content for word in ['nutrition', 'diet', 'food', 'eating']):
+                best_subcategories = ['nutrition basics']
+            elif any(word in content for word in ['health', 'medical', 'research']):
+                best_subcategories = ['health news']
+            else:
+                best_subcategories = ['general']
+        
+        return best_category, best_subcategories
+    
+    def _basic_categorization(self, content: str) -> Tuple[str, List[str]]:
+        """Fallback basic categorization if YAML file unavailable"""
         if any(word in content for word in ['diabetes', 'blood sugar', 'insulin', 'glucose']):
             return 'diseases', ['diabetes', 'metabolic']
         elif any(word in content for word in ['cancer', 'tumor', 'oncology', 'chemotherapy']):
@@ -326,7 +545,7 @@ class HealthScraper:
         elif any(word in content for word in ['heart', 'cardiac', 'cardiovascular', 'cholesterol']):
             return 'diseases', ['cardiovascular', 'heart']
         elif any(word in content for word in ['mental health', 'depression', 'anxiety', 'stress']):
-            return 'diseases', ['mental_health', 'wellness']
+            return 'diseases', ['mental health', 'wellness']
         elif any(word in content for word in ['nutrition', 'diet', 'food', 'eating']):
             return 'food', ['nutrition', 'diet']
         elif any(word in content for word in ['exercise', 'fitness', 'workout', 'physical activity']):
@@ -359,8 +578,8 @@ class HealthScraper:
             
             cursor.execute('''
                 INSERT OR IGNORE INTO articles 
-                (title, summary, url, source, date, categories, tags, author)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                (title, summary, url, source, date, categories, tags, authors, subcategory)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             ''', (
                 article['title'],
                 article.get('summary'),
@@ -369,7 +588,8 @@ class HealthScraper:
                 article['date'],
                 category,
                 json.dumps(all_tags),
-                article.get('author')
+                article.get('author'),
+                json.dumps(auto_tags) if auto_tags else None  # Store subcategories in subcategory field
             ))
             
             if cursor.rowcount > 0:

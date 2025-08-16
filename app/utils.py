@@ -150,12 +150,11 @@ def get_articles_paginated_optimized(
                     logger.info(f" Filtering by tag: '{tag}' (also checking '{tag_underscore}')")
                 
             if subcategory:
-                # Treat subcategory as a tag since there's no separate subcategory column
-                # Handle both frontend format (with spaces) and database format (with underscores)
+                # Search in both subcategory field and tags field for backward compatibility
                 subcategory_underscore = subcategory.replace(" ", "_")
-                where_conditions.append("(tags LIKE ? OR tags LIKE ?)")
-                params.extend([f'%"{subcategory}"%', f'%"{subcategory_underscore}"%'])
-                logger.info(f" Filtering by subcategory as tag: '{subcategory}' (also checking '{subcategory_underscore}')")
+                where_conditions.append("(subcategory LIKE ? OR subcategory LIKE ? OR tags LIKE ? OR tags LIKE ?)")
+                params.extend([f'%"{subcategory}"%', f'%"{subcategory_underscore}"%', f'%"{subcategory}"%', f'%"{subcategory_underscore}"%'])
+                logger.info(f" Filtering by subcategory: '{subcategory}' (also checking tags and '{subcategory_underscore}')")
                 
             if start_date:
                 where_conditions.append("date >= ?")
@@ -191,7 +190,7 @@ def get_articles_paginated_optimized(
             # Get articles
             query = f"""
                 SELECT id, title, summary, NULL as content, url, source, date, categories as category, 
-                       NULL as subcategory, tags, NULL as image_url, authors as author 
+                       subcategory, tags, NULL as image_url, authors as author 
                 FROM articles 
                 {where_clause} 
                 {order_clause} 
@@ -282,6 +281,25 @@ def get_articles_paginated_optimized(
                         article['tags'] = []
                 else:
                     article['tags'] = []
+                
+                # Parse subcategory if it's stored as JSON string
+                if article.get('subcategory'):
+                    try:
+                        if isinstance(article['subcategory'], str):
+                            subcategory_list = json.loads(article['subcategory'])
+                            # Convert to comma-separated string for frontend compatibility
+                            if subcategory_list and len(subcategory_list) > 0:
+                                # Convert underscores back to spaces
+                                subcategory_list = [sub.replace("_", " ") if isinstance(sub, str) else sub for sub in subcategory_list]
+                                article['subcategory'] = ", ".join(subcategory_list)
+                            else:
+                                article['subcategory'] = None
+                    except (json.JSONDecodeError, TypeError):
+                        # If it's not JSON, keep as is but clean underscores
+                        if isinstance(article['subcategory'], str):
+                            article['subcategory'] = article['subcategory'].replace("_", " ")
+                else:
+                    article['subcategory'] = None
                     
                 # Parse date
                 if article.get('date'):
