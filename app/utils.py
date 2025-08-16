@@ -65,43 +65,76 @@ def _generate_smart_summary(title: str, category: Optional[str] = None, source: 
         clean_title = re.sub(r'^[:\-\s]+', '', clean_title)  # Remove leading punctuation
         clean_title = re.sub(r'[:\-\s]+$', '', clean_title)  # Remove trailing punctuation
     
-    # Category-based summary templates
-    category_templates = {
-        'diseases': 'Learn about the latest research and insights on {topic}.',
-        'nutrition': 'Discover nutritional information and dietary guidance about {topic}.',
-        'fitness': 'Explore fitness tips and exercise recommendations related to {topic}.',
-        'mental_health': 'Find mental health resources and information about {topic}.',
-        'research': 'Read about recent medical research findings on {topic}.',
-        'policy': 'Stay informed about health policy developments regarding {topic}.',
-        'technology': 'Explore how technology is advancing healthcare in {topic}.',
-        'prevention': 'Learn prevention strategies and health tips for {topic}.',
-        'treatment': 'Understand treatment options and medical advances for {topic}.',
-        'wellness': 'Discover wellness tips and healthy lifestyle information about {topic}.'
-    }
-    
-    # Extract key topic from title
-    topic = clean_title.lower()
-    
-    # Try to match category with templates
-    if category and category.lower() in category_templates:
-        template = category_templates[category.lower()]
-        return template.format(topic=clean_title.lower())
-    
-    # Fallback based on title content analysis
+    # Extract meaningful content from title to create better summaries
     title_lower = clean_title.lower()
     
-    if any(word in title_lower for word in ['study', 'research', 'findings', 'shows']):
-        return f"Research findings and study results about {clean_title.lower()}."
-    elif any(word in title_lower for word in ['new', 'breakthrough', 'discovery']):
-        return f"Latest developments and breakthrough information on {clean_title.lower()}."
-    elif any(word in title_lower for word in ['tips', 'how to', 'guide', 'ways']):
-        return f"Practical guidance and helpful tips for {clean_title.lower()}."
-    elif any(word in title_lower for word in ['risk', 'danger', 'warning', 'alert']):
-        return f"Important health information and risk factors related to {clean_title.lower()}."
-    elif any(word in title_lower for word in ['treatment', 'therapy', 'cure', 'medicine']):
-        return f"Treatment options and medical information about {clean_title.lower()}."
-    else:
-        return f"Comprehensive health information and insights about {clean_title.lower()}."
+    # More specific and informative summary generation based on content
+    if 'breakthrough' in title_lower and 'ai' in title_lower:
+        return "Explore how artificial intelligence is revolutionizing healthcare with new medical breakthroughs and improved patient outcomes."
+    elif 'breakthrough' in title_lower and 'gene' in title_lower:
+        return "Discover the latest advances in genetic medicine and gene therapy that are transforming treatment options."
+    elif 'breakthrough' in title_lower and 'weight' in title_lower:
+        return "Learn about innovative approaches to weight management and the latest obesity treatment breakthroughs."
+    elif 'breakthrough' in title_lower:
+        return "Read about significant medical advances and innovative treatment approaches that are changing healthcare."
+    
+    elif 'diet' in title_lower and 'weight' in title_lower:
+        return "Discover evidence-based dietary strategies and nutrition plans that support healthy, sustainable weight management."
+    elif 'sugar' in title_lower and 'tooth' in title_lower:
+        return "Learn about the relationship between sugar consumption and dental health, plus practical tips for oral care."
+    elif 'diet' in title_lower or 'nutrition' in title_lower:
+        return "Get expert nutritional guidance and evidence-based dietary recommendations for optimal health."
+    
+    elif 'research' in title_lower and 'nutrition' in title_lower:
+        return "Review the latest nutrition research findings and discover how they apply to your daily health choices."
+    elif 'vaccine' in title_lower and 'research' in title_lower:
+        return "Examine vaccine research data, efficacy studies, and public health outcomes from recent clinical trials."
+    elif 'study' in title_lower or 'research' in title_lower:
+        return "Analyze recent medical research findings and understand their significance for patient care and treatment."
+    
+    elif 'doctor' in title_lower and 'strike' in title_lower:
+        return "Stay informed about healthcare workforce developments and their impact on patient care services."
+    elif 'doctor' in title_lower or 'physician' in title_lower:
+        return "Get insights into healthcare professional developments and medical practice innovations."
+    
+    elif 'stem cell' in title_lower:
+        return "Explore cutting-edge stem cell therapies and regenerative medicine approaches for various medical conditions."
+    elif 'treatment' in title_lower or 'therapy' in title_lower:
+        return "Learn about innovative treatment options, therapeutic advances, and patient care improvements."
+    
+    elif any(word in title_lower for word in ['vaccine', 'vaccination', 'immunization']):
+        return "Access important vaccination information, safety data, and public health guidance from medical experts."
+    
+    elif 'diabetes' in title_lower:
+        return "Find comprehensive information about diabetes management, prevention strategies, and lifestyle modifications."
+    elif any(word in title_lower for word in ['heart', 'cardiovascular', 'cardiac']):
+        return "Discover heart health information, cardiovascular disease prevention tips, and cardiac care guidance."
+    elif 'cancer' in title_lower:
+        return "Learn about cancer prevention, treatment advances, patient care information, and support resources."
+    elif any(word in title_lower for word in ['mental health', 'depression', 'anxiety']):
+        return "Access mental health resources, treatment information, and evidence-based guidance for emotional wellbeing."
+    
+    # Category-based fallbacks that are more natural
+    elif category:
+        if category.lower() == 'diseases':
+            return "Get informed about medical conditions, symptoms, treatment options, and prevention strategies."
+        elif category.lower() == 'nutrition' or category.lower() == 'food':
+            return "Discover nutritional insights, healthy eating tips, and dietary guidance from nutrition experts."
+        elif category.lower() == 'news':
+            return "Stay updated with the latest health news, medical developments, and healthcare policy changes."
+        elif category.lower() == 'solutions':
+            return "Explore practical health solutions, treatment approaches, and wellness strategies for better living."
+    
+    # Final fallback - create a more natural summary
+    if len(clean_title) > 50:
+        # Extract key health topics for longer titles
+        health_keywords = ['health', 'medical', 'treatment', 'disease', 'nutrition', 'wellness', 'care', 'medicine']
+        words = [w for w in clean_title.split() if len(w) > 4 and w.lower() not in ['with', 'that', 'this', 'from', 'about']]
+        key_words = [w for w in words[:3] if any(hw in w.lower() for hw in health_keywords)]
+        if key_words:
+            return f"Get expert insights and informed perspectives on {' '.join(key_words).lower()} and related health topics."
+    
+    return "Access expert health information and stay informed about important medical developments and wellness topics."
 
 # Cache for category keywords
 _category_cache = {}
@@ -227,8 +260,8 @@ def get_articles_paginated_optimized(
             else:
                 order_clause = f"ORDER BY date ASC, id ASC"
             
-            # Count total articles
-            count_query = f"SELECT COUNT(*) FROM articles {where_clause}"
+            # Count total articles (using DISTINCT to avoid duplicates)
+            count_query = f"SELECT COUNT(DISTINCT id) FROM articles {where_clause}"
             logger.info(f" Count query: {count_query} with params: {params}")
             cursor.execute(count_query, params)
             total = cursor.fetchone()[0]
@@ -240,9 +273,9 @@ def get_articles_paginated_optimized(
             
             logger.info(f"📄 Pagination: page={page}, limit={limit}, offset={offset}, total={total}, total_pages={total_pages}")
             
-            # Get articles
+            # Get articles (using DISTINCT to prevent duplicates)
             query = f"""
-                SELECT id, title, summary, NULL as content, url, source, date, categories as category, 
+                SELECT DISTINCT id, title, summary, NULL as content, url, source, date, categories as category, 
                        subcategory, tags, NULL as image_url, authors as author 
                 FROM articles 
                 {where_clause} 
@@ -296,12 +329,19 @@ def get_articles_paginated_optimized(
                     summary = re.sub(r'\(From:.*?\)', '', summary)
                     summary = re.sub(r'From:.*?(\.|$)', '', summary)
                     
-                    # Remove generic patterns that indicate bad summaries
+                    # Remove generic patterns that indicate bad summaries (including the ones shown in the frontend)
                     generic_patterns = [
                         r'.*- Health article summary\.',
                         r'Latest health news:.*',
                         r'Breaking health news:.*',
-                        r'Health News Network.*'
+                        r'Health News Network.*',
+                        r'^Latest developments and breakthrough information on.*',
+                        r'^Comprehensive health information and insights about.*',
+                        r'^Research findings and study results about.*',
+                        r'^Learn about the latest research and insights on.*',
+                        r'^Discover nutritional information and dietary guidance about.*',
+                        r'^Treatment options and medical information about.*',
+                        r'^Important health information and risk factors related to.*'
                     ]
                     
                     is_generic = False
@@ -310,13 +350,20 @@ def get_articles_paginated_optimized(
                             is_generic = True
                             break
                     
-                    # Check if summary is identical to title (our previous fix created this issue)
-                    if summary.strip() == title.strip():
+                    # Check if summary is identical to title (indicates auto-generated)
+                    if summary.strip().lower() == title.strip().lower():
+                        is_generic = True
+                    
+                    # Check if summary just repeats the title in a generic format
+                    title_words = set(title.lower().split())
+                    summary_words = set(summary.lower().split())
+                    if len(title_words.intersection(summary_words)) > len(title_words) * 0.8:
                         is_generic = True
                     
                     if is_generic:
                         # Generate a meaningful summary based on category and title content
                         article['summary'] = _generate_smart_summary(title, article.get('category'), article.get('source'))
+                        logger.info(f"Replaced generic summary for article: {title[:50]}...")
                     else:
                         # Clean and keep the existing summary
                         summary = summary.strip()

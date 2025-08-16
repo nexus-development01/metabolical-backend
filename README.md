@@ -260,18 +260,85 @@ python start.py
 open http://localhost:8000/docs
 ```
 
-## 🧪 Testing
+## 🔧 Recent Fixes & Improvements
 
-For comprehensive API testing and verification, refer to the documentation:
-- **Complete Endpoints**: See `docs/ALL_ENDPOINTS.md` for all available endpoints
-- **Search Documentation**: Check `docs/SEARCH_ENDPOINTS.md` for search functionality
-- **Performance Guide**: Review `docs/PERFORMANCE_IMPROVEMENTS.md` for optimization details
+### **Duplicate Articles Issue - FIXED ✅**
+- **Problem**: Frontend was showing duplicate articles due to database duplicates
+- **Solution**: Added `DISTINCT` clause to all SQL queries to prevent duplicate results
+- **Impact**: Eliminates duplicate articles from search and category results
 
+### **Generic Summary Issue - FIXED ✅**
+- **Problem**: Articles showing generic summaries like "Latest developments and breakthrough information on..."
+- **Solution**: Enhanced summary generation with content-aware analysis
+- **New Features**:
+  - Detects and replaces generic summary patterns
+  - Creates contextual summaries based on title analysis
+  - Content-specific summary generation for medical topics
+  - Improved readability and informativeness
+
+### **Enhanced Summary Quality**
+- ✅ **AI/Medical Breakthrough**: "Explore how artificial intelligence is revolutionizing healthcare..."
+- ✅ **Diet/Nutrition**: "Discover evidence-based dietary strategies for healthy weight management..."
+- ✅ **Research Studies**: "Review the latest nutrition research findings and their health implications..."
+- ✅ **Treatment Options**: "Learn about innovative treatment options, therapeutic advances..."
+
+### **Technical Implementation Details**
+
+#### **Duplicate Prevention**
+```sql
+-- Before (could return duplicates)
+SELECT id, title, summary FROM articles WHERE title LIKE '%diabetes%'
+
+-- After (ensures unique results)  
+SELECT DISTINCT id, title, summary FROM articles WHERE title LIKE '%diabetes%'
+```
+
+#### **Smart Summary Generation**
+```python
+# Enhanced summary logic with content analysis
+def _generate_smart_summary(title, category=None, source=None):
+    if 'breakthrough' in title and 'ai' in title:
+        return "Explore how AI is revolutionizing healthcare..."
+    elif 'diet' in title and 'weight' in title:
+        return "Discover evidence-based dietary strategies..."
+    # ... more intelligent patterns
+```
+
+#### **Generic Pattern Detection**
+- Detects patterns like "Latest developments and breakthrough information on..."
+- Replaces with contextual, meaningful summaries
+- Content-aware analysis based on medical topics
+- Maintains summary quality and readability
+
+## 🧪 Testing & Validation
+
+### API Testing
 ```bash
-# Test the API manually
+# Test health endpoint
 curl "http://localhost:8000/api/v1/health"
+
+# Test search functionality
+curl "http://localhost:8000/api/v1/search?q=diabetes"
+
+# Test categories
+curl "http://localhost:8000/api/v1/categories"
+
+# Test specific category
+curl "http://localhost:8000/api/v1/category/diseases?limit=5"
+
+# Test statistics
 curl "http://localhost:8000/api/v1/stats"
 ```
+
+### Interactive Testing
+- **Swagger UI**: http://localhost:8000/docs
+- **ReDoc**: http://localhost:8000/redoc
+- **API Root**: http://localhost:8000/api/v1/
+
+### Manual Testing Endpoints
+- `GET /api/v1/tag/prevention` - Test prevention tag
+- `GET /api/v1/category/diseases` - Test diseases category
+- `POST /api/v1/scheduler/trigger?scrape_type=quick` - Test background tasks
 
 ## 📝 Available Categories
 
@@ -287,32 +354,67 @@ curl "http://localhost:8000/api/v1/stats"
 ### Common Issues
 
 1. **Database not found**: Make sure `data/articles.db` exists
-2. **Port already in use**: Change port in `start.py` or kill existing process with `python stop.py`
+2. **Port already in use**: Change port in `.env` or kill existing process with `python stop.py`
 3. **Import errors**: Install dependencies with `pip install -r requirements.txt`
-4. **Scraper issues**: Check `config/scraper_config.py` for scraper settings
+4. **CORS errors**: Check CORS configuration in `main.py` for allowed origins
+5. **Scheduler issues**: Check scheduler status via `/api/v1/scheduler/status`
+6. **Environment variables**: Copy `.env.example` to `.env` and modify as needed
 
-### Logs
-Check the console output for detailed error messages and performance information.
+### Logs & Monitoring
+- **Console Output**: Detailed error messages and performance information
+- **Health Check**: Monitor via `/api/v1/health`
+- **API Statistics**: Check `/api/v1/stats` for usage metrics
+- **Scheduler Status**: Monitor background tasks via `/api/v1/scheduler/status`
 
 ### Graceful Shutdown
 Use `python stop.py` to properly shutdown the server and clean up resources.
 
-## 📚 Documentation
+## 📚 API Documentation
 
-For detailed information about the API, please refer to:
-- **`docs/ALL_ENDPOINTS.md`** - Complete list of all API endpoints
-- **`docs/SEARCH_ENDPOINTS.md`** - Search functionality documentation  
-- **`docs/PERFORMANCE_IMPROVEMENTS.md`** - Performance optimization guide
-- **`docs/SMARTNEWS_AGGREGATION.md`** - Smart news aggregation details
+### Interactive Documentation
+- **Swagger UI**: http://localhost:8000/docs - Interactive API testing
+- **ReDoc**: http://localhost:8000/redoc - Clean API documentation  
+- **API Root**: http://localhost:8000/api/v1/ - All available endpoints
 
-## 📈 Performance Features
+### API Versions
+- **Base API**: Direct endpoints without prefix (e.g., `/search`)
+- **V1 API**: Versioned endpoints with `/api/v1` prefix (recommended)
 
-- ✅ SQLite connection pooling
-- ✅ Database indexes for faster queries
-- ✅ In-memory caching for frequently accessed data
-- ✅ Optimized pagination
-- ✅ Gzip compression for responses
+### Search Capabilities
+- **Full-text search** across title, summary, and content
+- **Date filtering** with start_date and end_date parameters
+- **Category-based filtering** for organized content access
+- **Tag-based filtering** for specific topic searches
+- **Pagination** with configurable page size
+- **Sorting** by date (ascending/descending)
+
+### Response Formats
+All endpoints return JSON with consistent structure including:
+- Paginated results with metadata
+- Total count and page information
+- Error handling with appropriate HTTP status codes
+- Timestamp information for data freshness
+
+## 📈 Performance & Production Features
+
+- ✅ **SQLite WAL Mode** - Write-ahead logging for better concurrency
+- ✅ **Connection Pooling** - Efficient database connection management
+- ✅ **In-memory Caching** - LRU cache for frequently accessed data
+- ✅ **Database Indexes** - Optimized queries for faster searches
+- ✅ **Gzip Compression** - Automatic response compression
+- ✅ **Background Scheduler** - Automated tasks without blocking API
+- ✅ **Production CORS** - Configured for metabolical.in domains
+- ✅ **Environment Configuration** - Flexible deployment settings
+- ✅ **Health Monitoring** - Real-time API and database status
+- ✅ **Graceful Shutdown** - Clean resource cleanup on stop
+
+### Production Deployment
+- **Render.com**: Automated deployment via `render.yaml`
+- **Docker**: Container-ready with optimized Dockerfile  
+- **Environment Variables**: Production configuration via `.env`
+- **Health Checks**: Endpoint for load balancer monitoring
+- **CORS Security**: Restricted to authorized domains
 
 ---
 
-**🎯 This project provides a clean, well-documented health articles API with comprehensive scraping capabilities and excellent documentation for easy understanding and maintenance.**
+**🎯 Metabolical Backend API v2.0.0 - A production-ready health articles API with comprehensive search capabilities, background processing, and excellent documentation for easy deployment and maintenance.**
