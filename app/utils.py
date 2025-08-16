@@ -124,10 +124,11 @@ def get_articles_paginated_optimized(
                 params.extend([search_term, search_term, search_term])
                 
             if category:
-                # Since categories is stored as JSON array, we need to search within it
-                where_conditions.append("categories LIKE ?")
-                params.append(f'%"{category}"%')
-                logger.info(f" Filtering by category: '{category}'")
+                # Handle both JSON array format ["category"] and plain text format category
+                # Search for both quoted (JSON) and unquoted (plain text) formats
+                where_conditions.append("(categories LIKE ? OR categories LIKE ? OR categories = ?)")
+                params.extend([f'%"{category}"%', f'%{category}%', category])
+                logger.info(f" Filtering by category: '{category}' (checking both JSON and plain text formats)")
                 
             if tag:
                 # Since tags is stored as JSON array, we need to search within it
@@ -368,8 +369,12 @@ def get_category_stats_cached() -> Dict[str, int]:
                             else:
                                 category_stats[category] = row['count']
                     except (json.JSONDecodeError, TypeError):
-                        # If it's not JSON, treat as single category
-                        category_stats[categories_json] = row['count']
+                        # If it's not JSON, treat as single category (plain text format)
+                        category_name = categories_json.strip()
+                        if category_name in category_stats:
+                            category_stats[category_name] += row['count']
+                        else:
+                            category_stats[category_name] = row['count']
                 
             _stats_cache['categories'] = category_stats
             _cache_timestamp = datetime.now()
