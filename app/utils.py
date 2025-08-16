@@ -51,6 +51,58 @@ class SQLiteConnectionPool:
 # Global connection pool
 connection_pool = SQLiteConnectionPool(DB_PATH)
 
+def _generate_smart_summary(title: str, category: Optional[str] = None, source: Optional[str] = None) -> str:
+    """
+    Generate a meaningful summary different from the title based on category and content
+    """
+    if not title:
+        return "Health and wellness information."
+    
+    # Remove source name from title if present
+    clean_title = title
+    if source:
+        clean_title = clean_title.replace(source, "").strip()
+        clean_title = re.sub(r'^[:\-\s]+', '', clean_title)  # Remove leading punctuation
+        clean_title = re.sub(r'[:\-\s]+$', '', clean_title)  # Remove trailing punctuation
+    
+    # Category-based summary templates
+    category_templates = {
+        'diseases': 'Learn about the latest research and insights on {topic}.',
+        'nutrition': 'Discover nutritional information and dietary guidance about {topic}.',
+        'fitness': 'Explore fitness tips and exercise recommendations related to {topic}.',
+        'mental_health': 'Find mental health resources and information about {topic}.',
+        'research': 'Read about recent medical research findings on {topic}.',
+        'policy': 'Stay informed about health policy developments regarding {topic}.',
+        'technology': 'Explore how technology is advancing healthcare in {topic}.',
+        'prevention': 'Learn prevention strategies and health tips for {topic}.',
+        'treatment': 'Understand treatment options and medical advances for {topic}.',
+        'wellness': 'Discover wellness tips and healthy lifestyle information about {topic}.'
+    }
+    
+    # Extract key topic from title
+    topic = clean_title.lower()
+    
+    # Try to match category with templates
+    if category and category.lower() in category_templates:
+        template = category_templates[category.lower()]
+        return template.format(topic=clean_title.lower())
+    
+    # Fallback based on title content analysis
+    title_lower = clean_title.lower()
+    
+    if any(word in title_lower for word in ['study', 'research', 'findings', 'shows']):
+        return f"Research findings and study results about {clean_title.lower()}."
+    elif any(word in title_lower for word in ['new', 'breakthrough', 'discovery']):
+        return f"Latest developments and breakthrough information on {clean_title.lower()}."
+    elif any(word in title_lower for word in ['tips', 'how to', 'guide', 'ways']):
+        return f"Practical guidance and helpful tips for {clean_title.lower()}."
+    elif any(word in title_lower for word in ['risk', 'danger', 'warning', 'alert']):
+        return f"Important health information and risk factors related to {clean_title.lower()}."
+    elif any(word in title_lower for word in ['treatment', 'therapy', 'cure', 'medicine']):
+        return f"Treatment options and medical information about {clean_title.lower()}."
+    else:
+        return f"Comprehensive health information and insights about {clean_title.lower()}."
+
 # Cache for category keywords
 _category_cache = {}
 _stats_cache = {}
@@ -233,6 +285,7 @@ def get_articles_paginated_optimized(
                 
                 # Special handling for summary - clean and improve existing summaries
                 summary = article.get('summary', '')
+                title = article.get('title', '')
                 
                 # Clean summary text by removing source references and generic patterns
                 if summary and summary not in ['', 'NULL', None]:
@@ -257,26 +310,21 @@ def get_articles_paginated_optimized(
                             is_generic = True
                             break
                     
+                    # Check if summary is identical to title (our previous fix created this issue)
+                    if summary.strip() == title.strip():
+                        is_generic = True
+                    
                     if is_generic:
-                        # If it's a generic summary, try to extract meaningful content from title
-                        title = article.get('title', '')
-                        if len(title) > 20:
-                            # Use just the title without generic suffix
-                            article['summary'] = title[:200] + ("..." if len(title) > 200 else "")
-                        else:
-                            article['summary'] = "Health and wellness information."
+                        # Generate a meaningful summary based on category and title content
+                        article['summary'] = _generate_smart_summary(title, article.get('category'), article.get('source'))
                     else:
                         # Clean and keep the existing summary
                         summary = summary.strip()
                         article['summary'] = summary
                         
                 else:
-                    # Only generate fallback for truly empty summaries
-                    title = article.get('title', 'Health Article')
-                    if len(title) > 20:
-                        article['summary'] = title[:200] + ("..." if len(title) > 200 else "")
-                    else:
-                        article['summary'] = "Health and wellness information."
+                    # Generate fallback for truly empty summaries
+                    article['summary'] = _generate_smart_summary(title, article.get('category'), article.get('source'))
                 
                 # Ensure tags is always a list
                 if not article.get('tags') or article.get('tags') in ['', 'NULL', None]:
