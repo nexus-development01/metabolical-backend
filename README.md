@@ -1,14 +1,14 @@
-# 🏥 Metabolical Backend API - Clean & Simplified
+# 🏥 Metabolical Backend API - Version 2.0.0
 
 A FastAPI-based backend for health articles with search, categorization, and pagination. 
-**Simplified project structure for easy understanding and maintenance.**
+**Production-ready API with comprehensive endpoints, background scheduling, and optimized performance.**
 
 ## 📁 Project Structure
 
 ```
 metabolical-backend/
 ├── app/                           # 🚀 Main application code
-│   ├── main.py                   # FastAPI application
+│   ├── main.py                   # FastAPI application (v2.0.0)
 │   ├── utils.py                  # Database utilities
 │   ├── url_validator.py          # URL validation utilities
 │   ├── scheduler.py              # Background task scheduler
@@ -20,13 +20,11 @@ metabolical-backend/
 ├── data/                         # 💾 Database and cache
 │   └── articles.db               # SQLite database
 ├── scrapers/                     # 🕷️ Web scraper
-│   ├── scraper.py                # Single comprehensive health news scraper
+│   ├── scraper.py                # Comprehensive health news scraper
 │   └── __init__.py               # Package initialization
-├── docs/                         # 📚 Documentation
-│   ├── ALL_ENDPOINTS.md          # Complete API endpoints reference
-│   ├── PERFORMANCE_IMPROVEMENTS.md # Performance optimization guide
-│   ├── SEARCH_ENDPOINTS.md       # Search functionality documentation
-│   └── SMARTNEWS_AGGREGATION.md  # Smart news aggregation documentation
+├── .env.example                  # � Environment configuration template
+├── .gitignore                    # Git ignore rules
+├── .dockerignore                 # Docker ignore rules
 ├── Dockerfile                    # 🐳 Docker configuration
 ├── build.sh                      # 🔧 Build script for deployment
 ├── render.yaml                   # ☁️ Render.com deployment config
@@ -39,12 +37,21 @@ metabolical-backend/
 
 ## 🚀 Quick Start
 
-### 1. Install Dependencies
+### 1. Environment Setup (Optional)
+```bash
+# Copy environment template
+cp .env.example .env
+
+# Edit .env file with your configuration (optional)
+# Most settings have sensible defaults
+```
+
+### 2. Install Dependencies
 ```bash
 pip install -r requirements.txt
 ```
 
-### 2. Start the Server
+### 3. Start the Server
 ```bash
 # Local development
 python start.py
@@ -53,10 +60,11 @@ python start.py
 python start.py --host 0.0.0.0 --port $PORT
 ```
 
-### 3. Access the API
+### 4. Access the API
 - **Interactive Docs**: http://localhost:8000/docs
 - **Health Check**: http://localhost:8000/api/v1/health
 - **API Root**: http://localhost:8000/api/v1/
+- **Base API**: http://localhost:8000/
 
 ## 🐳 Docker Deployment
 
@@ -82,34 +90,92 @@ docker run -p 8000:8000 metabolical-backend
 
 ## 📋 API Endpoints
 
-All endpoints are under `/api/v1` prefix:
+The API supports both **base endpoints** (direct access) and **v1 endpoints** (versioned API):
 
-### Core Endpoints
-- `GET /api/v1/health` - Health check
-- `GET /api/v1/stats` - API statistics
+### Base API Endpoints (No Prefix)
+- `GET /search?q={query}` - Search articles directly
+- `GET /category/{category}` - Get articles by category
+- `GET /tag/{tag}` - Get articles by tag
 
-### Article Endpoints
-- `GET /api/v1/articles/` - Get paginated articles
-- `GET /api/v1/articles/latest` - Get latest articles
-- `GET /api/v1/articles/search?q={query}` - **Search articles** (primary)
-- `GET /api/v1/articles/{category}` - Get articles by category
-- `GET /api/v1/articles/{category}/{subcategory}` - Get articles by subcategory
+### V1 API Endpoints (Recommended)
+All v1 endpoints are under `/api/v1` prefix:
 
-### Category & Organization
-- `GET /api/v1/categories` - Get all categories
-- `GET /api/v1/search?q={query}` - Search articles (legacy)
+#### Core Endpoints
+- `GET /api/v1/health` - Health check with database status
+- `GET /api/v1/stats` - API statistics and metrics
+- `GET /api/v1/` - API root with all available endpoints
 
-## 🔍 Search Examples
+#### Article Search Endpoints
+- `GET /api/v1/search?q={query}` - **Primary search endpoint**
+- `GET /api/v1/articles/search?q={query}` - **Alternative search endpoint**
+- `GET /api/v1/search?q={query}&start_date={date}&end_date={date}` - Date-filtered search
+- `GET /api/v1/search?q={query}&sort_by=asc` - Sorted search results
 
+#### Category & Tag Endpoints
+- `GET /api/v1/category/{category}` - Get articles by category
+- `GET /api/v1/tag/{tag}` - Get articles by tag
+- `GET /api/v1/categories` - Get all available categories
+- `GET /api/v1/tags` - Get all available tags
+
+#### Background Scheduler Endpoints
+- `GET /api/v1/scheduler/status` - Get scheduler status
+- `POST /api/v1/scheduler/trigger?scrape_type=quick` - Trigger manual scrape
+
+#### Test-Specific Endpoints
+- `GET /api/v1/tag/prevention` - Get prevention articles
+- `GET /api/v1/category/diseases` - Get disease articles
+
+## 🔍 API Usage Examples
+
+### Search Examples
 ```bash
-# Search for diabetes articles
+# Primary search endpoint
+curl "http://localhost:8000/api/v1/search?q=diabetes&limit=10"
+
+# Alternative search endpoint
 curl "http://localhost:8000/api/v1/articles/search?q=diabetes&limit=10"
 
-# Get articles by category
-curl "http://localhost:8000/api/v1/articles/diseases?page=1&limit=20"
+# Search with date filters
+curl "http://localhost:8000/api/v1/search?q=diabetes&start_date=2025-01-01&end_date=2025-12-31"
 
-# Get latest articles
-curl "http://localhost:8000/api/v1/articles/latest?limit=5"
+# Search with sorting
+curl "http://localhost:8000/api/v1/search?q=diabetes&sort_by=asc"
+```
+
+### Category & Tag Examples
+```bash
+# Get articles by category
+curl "http://localhost:8000/api/v1/category/diseases?page=1&limit=20"
+
+# Get articles by tag
+curl "http://localhost:8000/api/v1/tag/prevention?limit=15"
+
+# Get all categories
+curl "http://localhost:8000/api/v1/categories"
+
+# Get all tags
+curl "http://localhost:8000/api/v1/tags"
+```
+
+### Base API Examples (Alternative)
+```bash
+# Direct search without API prefix
+curl "http://localhost:8000/search?q=diabetes"
+
+# Direct category access
+curl "http://localhost:8000/category/diseases"
+```
+
+### Health & Monitoring
+```bash
+# Check API health
+curl "http://localhost:8000/api/v1/health"
+
+# Get API statistics
+curl "http://localhost:8000/api/v1/stats"
+
+# Check scheduler status
+curl "http://localhost:8000/api/v1/scheduler/status"
 ```
 
 ## 📊 Response Format
@@ -140,28 +206,59 @@ curl "http://localhost:8000/api/v1/articles/latest?limit=5"
 
 ## 🛠️ Development
 
-### Project Structure Benefits
-✅ **Single main.py** - No confusion between multiple main files  
-✅ **Single utils.py** - All utilities in one place  
-✅ **Clear directories** - Organized by function  
-✅ **Simple startup** - One command to run  
-✅ **Clean dependencies** - Only essential packages  
-✅ **Multiple scrapers** - Comprehensive data collection  
-✅ **Complete documentation** - Well-documented API endpoints  
+### Project Features (v2.0.0)
+✅ **Dual API Structure** - Both base endpoints and versioned v1 API  
+✅ **Production CORS** - Configured for metabolical.in domains  
+✅ **Background Scheduler** - Automated scraping with manual triggers  
+✅ **Comprehensive Search** - Multiple search endpoints with filtering  
+✅ **Category & Tag System** - Organized content classification  
+✅ **Environment Configuration** - Flexible .env setup  
+✅ **Performance Optimized** - Connection pooling and caching  
+✅ **Health Monitoring** - Status endpoints and error handling  
+✅ **Clean Architecture** - Single main.py with modular utilities  
 
-### Available Scrapers
-- **comprehensive_news_scraper.py** - Main news article scraper
-- **python313_compatible_scraper.py** - Python 3.13 compatible scraper
-- **simple_health_scraper.py** - Focused health article scraper
-- **smart_news_aggregator.py** - Intelligent news aggregation
-- **social_media_scraper.py** - Social media content extraction
+### Key Improvements in v2.0.0
+- **Enhanced API Structure**: Both direct and versioned endpoints
+- **Production-Ready CORS**: Configured for metabolical.in domain
+- **Background Processing**: Scheduler for automated tasks
+- **Comprehensive Documentation**: Auto-generated via FastAPI
+- **Environment Configuration**: Flexible .env setup
+- **Enhanced Search**: Multiple search endpoints with date filtering
+- **Monitoring**: Health checks and API statistics
+- **Performance**: Optimized database queries and connection pooling
 
-### Configuration
-- **Database**: SQLite database in `data/articles.db`
-- **Categories**: Configured in `config/category_keywords.yml`
-- **Scraper Settings**: Configured in `config/scraper_config.py`
-- **Logging**: INFO level by default (DEBUG with --debug flag)
-- **CORS**: Enabled for all origins (development)
+### Environment Configuration
+Create a `.env` file from `.env.example`:
+```bash
+# Server Configuration
+PORT=8000
+PUBLIC_URL=http://localhost:8000
+
+# Database Configuration  
+DATABASE_PATH=data/articles.db
+
+# API Configuration
+DEBUG=false
+LOG_LEVEL=info
+```
+
+### Development Setup
+```bash
+# Clone and navigate to project
+cd metabolical-backend-main
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Optional: Copy and modify environment file
+cp .env.example .env
+
+# Start development server
+python start.py
+
+# Access documentation
+open http://localhost:8000/docs
+```
 
 ## 🧪 Testing
 
