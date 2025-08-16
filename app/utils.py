@@ -231,27 +231,52 @@ def get_articles_paginated_optimized(
                     if article.get(optional_field) == '' or article.get(optional_field) == 'NULL':
                         article[optional_field] = None
                 
-                # Special handling for summary - ensure it's never empty
-                if not article.get('summary') or article.get('summary') in ['', 'NULL', None]:
-                    # Generate a fallback summary from the title
-                    title = article.get('title', 'Health Article')
-                    if len(title) > 100:
-                        article['summary'] = title[:97] + "..."
+                # Special handling for summary - clean and improve existing summaries
+                summary = article.get('summary', '')
+                
+                # Clean summary text by removing source references and generic patterns
+                if summary and summary not in ['', 'NULL', None]:
+                    import re
+                    # Remove source references like "Source: XYZ" or "(Source: XYZ)" from the summary
+                    summary = re.sub(r'\(Source:.*?\)', '', summary)
+                    summary = re.sub(r'Source:.*?(\.|$)', '', summary)
+                    summary = re.sub(r'\(From:.*?\)', '', summary)
+                    summary = re.sub(r'From:.*?(\.|$)', '', summary)
+                    
+                    # Remove generic patterns that indicate bad summaries
+                    generic_patterns = [
+                        r'.*- Health article summary\.',
+                        r'Latest health news:.*',
+                        r'Breaking health news:.*',
+                        r'Health News Network.*'
+                    ]
+                    
+                    is_generic = False
+                    for pattern in generic_patterns:
+                        if re.match(pattern, summary, re.IGNORECASE):
+                            is_generic = True
+                            break
+                    
+                    if is_generic:
+                        # If it's a generic summary, try to extract meaningful content from title
+                        title = article.get('title', '')
+                        if len(title) > 20:
+                            # Use just the title without generic suffix
+                            article['summary'] = title[:200] + ("..." if len(title) > 200 else "")
+                        else:
+                            article['summary'] = "Health and wellness information."
                     else:
-                        article['summary'] = f"{title} - Health article summary."
-                    logger.info(f"Generated fallback summary for article {article.get('id')}: {article['summary'][:50]}...")
-                else:
-                    # Clean summary text by removing source references
-                    summary = article['summary']
-                    if summary:
-                        # Remove source references like "Source: XYZ" or "(Source: XYZ)" from the summary
-                        import re
-                        summary = re.sub(r'\(Source:.*?\)', '', summary)
-                        summary = re.sub(r'Source:.*?(\.|$)', '', summary)
-                        summary = re.sub(r'\(From:.*?\)', '', summary)
-                        summary = re.sub(r'From:.*?(\.|$)', '', summary)
+                        # Clean and keep the existing summary
                         summary = summary.strip()
                         article['summary'] = summary
+                        
+                else:
+                    # Only generate fallback for truly empty summaries
+                    title = article.get('title', 'Health Article')
+                    if len(title) > 20:
+                        article['summary'] = title[:200] + ("..." if len(title) > 200 else "")
+                    else:
+                        article['summary'] = "Health and wellness information."
                 
                 # Ensure tags is always a list
                 if not article.get('tags') or article.get('tags') in ['', 'NULL', None]:
