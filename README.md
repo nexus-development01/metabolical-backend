@@ -11,6 +11,7 @@ metabolical-backend/
 │   ├── main.py                   # FastAPI application
 │   ├── utils.py                  # Database utilities
 │   ├── url_validator.py          # URL validation utilities
+│   ├── scheduler.py              # Background task scheduler
 │   └── __init__.py               # Package initialization
 ├── config/                       # ⚙️ Configuration files
 │   ├── category_keywords.yml     # Category classification keywords
@@ -18,22 +19,21 @@ metabolical-backend/
 │   └── __init__.py               # Package initialization
 ├── data/                         # 💾 Database and cache
 │   └── articles.db               # SQLite database
-├── scrapers/                     # 🕷️ Web scrapers
-│   ├── comprehensive_news_scraper.py     # Main news scraper
-│   ├── python313_compatible_scraper.py  # Python 3.13 compatible scraper
-│   ├── simple_health_scraper.py         # Simple health articles scraper
-│   ├── smart_news_aggregator.py         # Smart news aggregation
-│   ├── social_media_scraper.py          # Social media content scraper
-│   └── __init__.py                      # Package initialization
+├── scrapers/                     # 🕷️ Web scraper
+│   ├── scraper.py                # Single comprehensive health news scraper
+│   └── __init__.py               # Package initialization
 ├── docs/                         # 📚 Documentation
 │   ├── ALL_ENDPOINTS.md          # Complete API endpoints reference
-│   ├── Endpoint.md               # Endpoint documentation
 │   ├── PERFORMANCE_IMPROVEMENTS.md # Performance optimization guide
 │   ├── SEARCH_ENDPOINTS.md       # Search functionality documentation
 │   └── SMARTNEWS_AGGREGATION.md  # Smart news aggregation documentation
+├── Dockerfile                    # 🐳 Docker configuration
+├── build.sh                      # 🔧 Build script for deployment
+├── render.yaml                   # ☁️ Render.com deployment config
 ├── start.py                      # 🎯 Simple startup script
 ├── stop.py                       # 🛑 Server shutdown script
-├── requirements.txt              # 📦 Project dependencies
+├── requirements.txt              # 📦 Development dependencies
+├── requirements-prod.txt         # 📦 Production dependencies
 └── README.md                     # 📖 This file
 ```
 
@@ -44,53 +44,41 @@ metabolical-backend/
 pip install -r requirements.txt
 ```
 
-### 2. Configure for Public Deployment (Optional)
+### 2. Start the Server
 ```bash
-# Copy example environment file
-cp .env.example .env
+# Local development
+python start.py
 
-# Edit .env file with your configuration
-# Set PORT=80 for standard web port
-# Set PUBLIC_URL=https://yourdomain.com for your domain
+# Production deployment  
+python start.py --host 0.0.0.0 --port $PORT
 ```
 
-### 3. Start the Server
-
-#### Local Development:
-```bash
-# Normal mode (default port 8000)
-python start.py --port 8000
-
-# Debug mode with detailed logging
-python start.py --debug --port 8000
-```
-
-#### Public Deployment:
-```bash
-# Production mode on port 80
-python start.py --port 80 --public-url https://yourdomain.com
-
-# With environment variables
-PORT=80 PUBLIC_URL=https://yourdomain.com python start.py
-```
-
-### 4. Stop the Server
-```bash
-# Use the stop script to gracefully shutdown
-python stop.py
-```
-
-### 5. Access the API
-
-#### Local Development:
-- **API Base URL**: http://localhost:8000
+### 3. Access the API
 - **Interactive Docs**: http://localhost:8000/docs
-- **ReDoc**: http://localhost:8000/redoc
+- **Health Check**: http://localhost:8000/api/v1/health
+- **API Root**: http://localhost:8000/api/v1/
 
-#### Public Deployment:
-- **API Base URL**: https://yourdomain.com
-- **Interactive Docs**: https://yourdomain.com/docs
-- **ReDoc**: https://yourdomain.com/redoc
+## 🐳 Docker Deployment
+
+```bash
+# Build the Docker image
+docker build -t metabolical-backend .
+
+# Run the container
+docker run -p 8000:8000 metabolical-backend
+```
+
+## ☁️ Cloud Deployment
+
+### Render.com
+1. Connect your GitHub repository
+2. Use the included `render.yaml` configuration
+3. Deploy automatically
+
+### Other Platforms
+- Uses `build.sh` for build commands
+- Runs with `python start.py --host 0.0.0.0`
+- Health check at `/api/v1/health`
 
 ## 📋 API Endpoints
 
