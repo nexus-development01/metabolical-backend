@@ -1,0 +1,109 @@
+# Fallback Configuration for Empty Categories
+# This file defines fallback strategies when categories have no fresh news
+
+fallback_strategies:
+  # When to trigger fallback (hours without fresh content)
+  trigger_threshold_hours: 6
+  
+  # Maximum age of cached articles to promote (days)
+  max_cache_age_days: 7
+  
+  # Number of articles to promote per category
+  articles_per_category: 5
+
+# Google News fallback keywords for each category
+google_news_fallback:
+  news:
+    - "latest health news"
+    - "medical news today"
+    - "health policy news"
+    - "healthcare developments"
+    
+  diseases:
+    - "diabetes news"
+    - "heart disease research"
+    - "obesity studies"
+    - "cancer research"
+    - "mental health news"
+    
+  solutions:
+    - "medical treatments"
+    - "health solutions"
+    - "preventive medicine"
+    - "wellness strategies"
+    - "fitness research"
+    
+  food:
+    - "nutrition news"
+    - "healthy eating"
+    - "food safety"
+    - "dietary research"
+    - "organic food news"
+    
+  audience:
+    - "women's health"
+    - "men's health"
+    - "children's health"
+    - "elderly health"
+    - "family health"
+    
+  trending:
+    - "gut health research"
+    - "mental wellness"
+    - "hormone health"
+    - "sleep research"
+    - "microbiome news"
+
+# Alternative RSS feeds as backup sources
+backup_rss_feeds:
+  news:
+    - name: "Healthday News"
+      url: "https://consumer.healthday.com/rss/"
+      priority: 4
+    - name: "Medical News Today"
+      url: "https://www.medicalnewstoday.com/rss"
+      priority: 4
+      
+  diseases:
+    - name: "Diabetes.org News"
+      url: "https://www.diabetes.org/rss"
+      priority: 4
+    - name: "American Heart Association"
+      url: "https://newsroom.heart.org/rss"
+      priority: 4
+      
+  solutions:
+    - name: "Mayo Clinic News"
+      url: "https://newsnetwork.mayoclinic.org/rss/"
+      priority: 4
+    - name: "Cleveland Clinic Health Essentials"
+      url: "https://health.clevelandclinic.org/feed/"
+      priority: 4
+      
+  food:
+    - name: "Nutrition.gov"
+      url: "https://www.nutrition.gov/rss.xml"
+      priority: 4
+    - name: "Food Safety News"
+      url: "https://www.foodsafetynews.com/feed/"
+      priority: 4
+
+# Monitoring and alerting
+monitoring:
+  # Send alerts when categories are empty
+  alert_on_empty_categories: true
+  
+  # Minimum articles per category per day
+  min_articles_per_day:
+    news: 10
+    diseases: 8
+    solutions: 6
+    food: 5
+    audience: 4
+    trending: 3
+  
+  # Log detailed category statistics
+  detailed_category_logging: true
+  
+  # Check feed health every N hours
+  feed_health_check_interval: 2

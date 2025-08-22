@@ -1,0 +1,88 @@
+alternative_feeds:
+  cnn_health:
+  - https://rss.cnn.com/rss/edition_health.rss
+  - https://www.cnn.com/services/rss/
+  medical_news_today:
+  - https://www.medicalnewstoday.com/rss
+  - https://www.medicalnewstoday.com/feeds
+  reuters_health:
+  - https://feeds.reuters.com/reuters/healthNews
+  - https://www.reuters.com/arcio/rss/
+  webmd:
+  - https://www.webmd.com/rss/rss.aspx?RSSSource=RSS_PUBLIC
+  - https://www.webmd.com/rss/
+blacklisted_feeds:
+- reason: 404 Not Found - Feed discontinued
+  retry_after: '2025-09-21T00:00:00Z'
+  status_code: 404
+  timestamp: '2025-08-21T00:00:00Z'
+  url: https://www.nih.gov/news-events/news-releases/rss.xml
+- reason: 404 Not Found - Feed URL changed
+  retry_after: '2025-09-21T00:00:00Z'
+  status_code: 404
+  timestamp: '2025-08-21T00:00:00Z'
+  url: http://rss.cnn.com/rss/edition_health.rss
+- reason: 404 Not Found - Feed no longer available
+  retry_after: '2025-09-21T00:00:00Z'
+  status_code: 404
+  timestamp: '2025-08-21T00:00:00Z'
+  url: https://www.webmd.com/rss/rss.aspx?RSSSource=RSS_PUBLIC
+- reason: 404 Not Found - Feed URL changed
+  retry_after: '2025-09-21T00:00:00Z'
+  status_code: 404
+  timestamp: '2025-08-21T00:00:00Z'
+  url: https://www.medicalnewstoday.com/rss
+- reason: 429 Too Many Requests - Rate limited
+  retry_after: '2025-08-21T12:00:00Z'
+  status_code: 429
+  timestamp: '2025-08-21T00:00:00Z'
+  url: https://www.reddit.com/r/Health/.rss
+- reason: DNS resolution failure - Network blocked
+  retry_after: '2025-08-21T06:00:00Z'
+  status_code: DNS_ERROR
+  timestamp: '2025-08-21T00:00:00Z'
+  url: https://feeds.reuters.com/reuters/healthNews
+- reason: Test blacklist entry
+  retry_after: '2025-09-20T11:41:14.576173Z'
+  status_code: 404
+  timestamp: '2025-08-21T11:41:14.576173Z'
+  url: https://example.com/fake-feed.xml
+- reason: 404 Not Found - Feed discontinued
+  retry_after: '2025-09-20T11:41:25.810974Z'
+  status_code: 404
+  timestamp: '2025-08-21T11:41:25.810974Z'
+  url: https://www.healthline.com/health-news/rss
+- reason: 'Failed after 3 retries: HTTPSConnectionPool(host=''medicalxpress.com'',
+    port=443): Max retries exceeded with url: /rss-feed/ (Caused by NewConnectionError(''<urllib3.connection.HTTPSConnection
+    object at 0x000001EDBB7F6850>: Failed to establish a new connection: [WinError
+    10051] A socket operation was attempted to an unreachable network''))'
+  retry_after: '2025-08-21T17:42:17.617483Z'
+  status_code: UNKNOWN
+  timestamp: '2025-08-21T11:42:17.617483Z'
+  url: https://medicalxpress.com/rss-feed/
+- reason: 404 Not Found - Feed discontinued
+  retry_after: '2025-09-20T11:42:20.751179Z'
+  status_code: 404
+  timestamp: '2025-08-21T11:42:20.751179Z'
+  url: https://www.sciencedaily.com/rss/health_medicine/environmental_health.xml
+- reason: 404 Not Found - Feed discontinued
+  retry_after: '2025-09-20T11:42:22.101236Z'
+  status_code: 404
+  timestamp: '2025-08-21T11:42:22.101236Z'
+  url: https://www.eurekalert.org/rss/health_medicine.xml
+cleanup:
+  max_blacklist_size: 100
+  remove_after_days: 90
+feed_validation:
+  max_retries: 3
+  rate_limits:
+    default: 15
+    feeds.reuters.com: 10
+    news.google.com: 5
+    reddit.com: 2
+  retry_delay_base: 2
+  timeout_seconds: 15
+  user_agents:
+  - Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36
+  - Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36
+  - Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36
