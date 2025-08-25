@@ -1509,14 +1509,14 @@ class EnhancedHealthScraper:
                 title_clean = title.lower().strip()
                 summary_clean = summary.lower().strip()
                 
-                # Check if title and summary are too similar
+                # More strict duplicate detection
                 if (title_clean == summary_clean or 
-                    abs(len(title_clean) - len(summary_clean)) < 10 or
+                    title_clean in summary_clean or
                     summary_clean in title_clean or
-                    title_clean in summary_clean):
+                    abs(len(title_clean) - len(summary_clean)) < 5):
                     # Generate a better summary
                     article['summary'] = self._generate_contextual_summary(title, source_name)
-                    logger.debug(f"Replaced duplicate summary for: {title[:50]}...")
+                    logger.debug(f"Replaced duplicate/similar summary for: {title[:50]}...")
             elif title and not summary:
                 # Generate summary if missing
                 article['summary'] = self._generate_contextual_summary(title, source_name)
