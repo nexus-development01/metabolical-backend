@@ -21,7 +21,7 @@ import json
 import re
 import time
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import List, Dict, Optional, Tuple, Set
 from urllib.parse import urljoin, urlparse, quote_plus
 from xml.etree import ElementTree as ET
@@ -39,6 +39,14 @@ sys.path.append(str(BASE_DIR))
 # Setup enhanced logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
+
+# RSS parsing
+try:
+    import feedparser
+    FEEDPARSER_AVAILABLE = True
+except ImportError:
+    FEEDPARSER_AVAILABLE = False
+    logger.warning("feedparser not available - using fallback XML parsing")
 
 # Database path
 DB_PATH = BASE_DIR / "data" / "articles.db"
@@ -319,6 +327,55 @@ class FeedValidator:
         feeds_config = self.config_data.get('feeds_blacklist', {})
         for feed in feeds_config.get('blacklisted_feeds', []):
             if feed['url'] == url:
+                # Check if retry time has passed
+                retry_after = datetime.fromisoformat(feed['retry_after'].replace('Z', '+00:00'))
+                if datetime.now(timezone.utc) < retry_after:
+                    return True, f"Blacklisted until {retry_after.strftime('%Y-%m-%d %H:%M')}"
+                else:
+                    # Retry time passed, remove from blacklist
+                    self._remove_from_blacklist(url)
+                    return False, None
+        return False, None
+
+class FeedValidator:
+    def __init__(self, blacklist_file: Path):
+        self.blacklist_file = blacklist_file
+        self.blacklist_data = self._load_blacklist()
+        self.rate_limiter = RateLimiter()
+        
+        # Load configuration
+        self.config = self.blacklist_data.get('feed_validation', {})
+        self.timeout = self.config.get('timeout_seconds', 15)
+        self.max_retries = self.config.get('max_retries', 3)
+        self.retry_delay_base = self.config.get('retry_delay_base', 2)
+        self.rate_limits = self.config.get('rate_limits', {})
+        self.user_agents = self.config.get('user_agents', [
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+        ])
+    
+    def _load_blacklist(self) -> Dict:
+        """Load blacklist configuration"""
+        try:
+            if self.blacklist_file.exists():
+                with open(self.blacklist_file, 'r', encoding='utf-8') as f:
+                    return yaml.safe_load(f) or {}
+            return {"blacklisted_feeds": [], "feed_validation": {}, "alternative_feeds": {}}
+        except Exception as e:
+            logger.error(f"Error loading blacklist: {e}")
+            return {"blacklisted_feeds": [], "feed_validation": {}, "alternative_feeds": {}}
+    
+    def _save_blacklist(self):
+        """Save blacklist configuration"""
+        try:
+            with open(self.blacklist_file, 'w', encoding='utf-8') as f:
+                yaml.safe_dump(self.blacklist_data, f, default_flow_style=False)
+        except Exception as e:
+            logger.error(f"Error saving blacklist: {e}")
+    
+    def is_blacklisted(self, url: str) -> Tuple[bool, Optional[str]]:
+        """Check if URL is blacklisted and if retry time has passed"""
+        for feed in self.blacklist_data.get('blacklisted_feeds', []):
+            if feed['url'] == url:
                 retry_after = feed.get('retry_after')
                 if retry_after:
                     try:
@@ -342,6 +399,11 @@ class FeedValidator:
             if feed['url'] != url
         ]
         self._save_config()
+        self.blacklist_data['blacklisted_feeds'] = [
+            feed for feed in self.blacklist_data.get('blacklisted_feeds', [])
+            if feed['url'] != url
+        ]
+        self._save_blacklist()
     
     def add_to_blacklist(self, url: str, reason: str, status_code: Optional[int] = None):
         """Add URL to blacklist with appropriate retry time"""
@@ -378,6 +440,11 @@ class FeedValidator:
         
         feeds_config['blacklisted_feeds'].append(feed_entry)
         self._save_config()
+        if 'blacklisted_feeds' not in self.blacklist_data:
+            self.blacklist_data['blacklisted_feeds'] = []
+        
+        self.blacklist_data['blacklisted_feeds'].append(feed_entry)
+        self._save_blacklist()
         
         logger.warning(f"🚫 Blacklisted {url}: {reason} (retry after: {retry_after.strftime('%Y-%m-%d %H:%M')})")
     
@@ -481,18 +548,33 @@ class EnhancedHealthScraper:
         # Initialize summary enhancer
         self.summary_enhancer = SummaryEnhancer(self.session)
         
-        # Enhanced session configuration
+        # Enhanced session configuration with retry logic
         self.session.headers.update({
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/117.0',
             'Accept': 'application/rss+xml, application/xml, text/xml, */*',
             'Accept-Language': 'en-US,en;q=0.9',
             'Cache-Control': 'no-cache',
             'Connection': 'keep-alive'
         })
         
+        # Add retry strategy with exponential backoff
+        from requests.adapters import HTTPAdapter
+        from urllib3.util.retry import Retry
+        
+        retry_strategy = Retry(
+            total=5,
+            backoff_factor=1,
+            status_forcelist=[403, 404, 429, 500, 502, 503, 504],
+            respect_retry_after_header=True
+        )
+        
+        adapter = HTTPAdapter(max_retries=retry_strategy)
+        self.session.mount("http://", adapter)
+        self.session.mount("https://", adapter)
+        
         # Initialize feed validator
-        blacklist_file = BASE_DIR / "config" / "config.yml"
-        self.feed_validator = FeedValidator(blacklist_file)
+        config_file = BASE_DIR / "config" / "config.yml"
+        self.feed_validator = FeedValidator(config_file)
         
         # Pre-computed URL and title hashes for fast duplicate detection
         self.existing_url_hashes: Set[str] = set()
@@ -511,7 +593,7 @@ class EnhancedHealthScraper:
             },
             {
                 "name": "CDC Health News",
-                "url": "https://tools.cdc.gov/api/v2/resources/media/403372.rss",
+                "url": "https://tools.cdc.gov/podcasts/rss.asp",
                 "category": "news", 
                 "tags": ["cdc", "prevention", "government"],
                 "priority": 1
@@ -558,17 +640,17 @@ class EnhancedHealthScraper:
                 "priority": 2
             },
             {
-                "name": "ScienceDaily Environmental Health",
-                "url": "https://www.sciencedaily.com/rss/health_medicine/environmental_health.xml",
+                "name": "Nature Medicine",
+                "url": "https://www.nature.com/nm.rss",
                 "category": "trending",
-                "tags": ["environment", "health", "research"],
+                "tags": ["research", "medicine", "science"],
                 "priority": 2
             },
             
             # Academic & Research Sources
             {
-                "name": "EurekAlert Health",
-                "url": "https://www.eurekalert.org/rss/health_medicine.xml",
+                "name": "PubMed Central News",
+                "url": "https://www.ncbi.nlm.nih.gov/feed/rss.cgi?ChanKey=NIHNews",
                 "category": "news",
                 "tags": ["research", "academic", "health"],
                 "priority": 2
@@ -606,10 +688,10 @@ class EnhancedHealthScraper:
             
             # Additional Food & Nutrition Sources
             {
-                "name": "Nutrition News",
-                "url": "https://www.medicalnewstoday.com/rss/nutrition.xml",
-                "category": "food",
-                "tags": ["nutrition", "diet", "healthy eating", "natural food"],
+                "name": "Healthline News",
+                "url": "https://www.healthline.com/rss",
+                "category": "news",
+                "tags": ["nutrition", "diet", "healthy eating", "medical"],
                 "priority": 2
             },
             {
@@ -624,6 +706,50 @@ class EnhancedHealthScraper:
                 "url": "https://www.organicfoodguide.com/feed/",
                 "category": "food",
                 "tags": ["organic food", "natural food", "sustainable"],
+                "priority": 3
+            },
+            
+            # Health Blogs & Opinion Sources
+            {
+                "name": "EatThis.com Health",
+                "url": "https://www.eatthis.com/feed/",
+                "category": "blogs_and_opinions",
+                "tags": ["nutrition blog", "food opinions", "health advice"],
+                "priority": 2
+            },
+            {
+                "name": "Health Harvard Blog",
+                "url": "https://www.health.harvard.edu/blog/feed",
+                "category": "blogs_and_opinions",
+                "tags": ["wellness blog", "health opinions", "medical advice"],
+                "priority": 2
+            },
+            {
+                "name": "Nutrition Stripped",
+                "url": "https://nutritionstripped.com/feed/",
+                "category": "blogs_and_opinions",
+                "tags": ["nutrition blog", "healthy recipes", "wellness advice"],
+                "priority": 2
+            },
+            {
+                "name": "Verywell Health",
+                "url": "https://www.verywellhealth.com/rss",
+                "category": "blogs_and_opinions",
+                "tags": ["health blog", "medical advice", "wellness"],
+                "priority": 3
+            },
+            {
+                "name": "Shape Health & Fitness",
+                "url": "https://www.shape.com/rss.xml",
+                "category": "blogs_and_opinions",
+                "tags": ["fitness blog", "health opinions", "wellness"],
+                "priority": 3
+            },
+            {
+                "name": "Self Health News", 
+                "url": "https://www.self.com/feed/rss",
+                "category": "blogs_and_opinions",
+                "tags": ["health blog", "wellness", "self care"],
                 "priority": 3
             }
         ]
@@ -979,7 +1105,7 @@ class EnhancedHealthScraper:
         try:
             import yaml
             from pathlib import Path
-            config_path = Path(__file__).parent.parent / "config" / "config.yml"
+            config_path = Path(__file__).parent.parent / "config" / "category_keywords.yml"
             with open(config_path, 'r', encoding='utf-8') as f:
                 categories_data = yaml.safe_load(f)
         except Exception as e:
@@ -989,7 +1115,7 @@ class EnhancedHealthScraper:
         
         # Ensure we have the categories structure
         if not categories_data or 'categories' not in categories_data:
-            logger.warning("Invalid config.yml structure")
+            logger.warning("Invalid category_keywords.yml structure")
             return self._basic_categorization(content)
         
         categories = categories_data['categories']
@@ -1439,6 +1565,7 @@ class EnhancedHealthScraper:
             logger.info("   • Check RSS feed URLs for these categories")
             logger.info("   • Verify network connectivity")
             logger.info("   • Review blacklisted feeds in config.yml")
+            logger.info("   • Review blacklisted feeds in feeds_blacklist.yml")
             logger.info("   • Consider adding fallback sources for these categories")
         
         efficiency = (self.articles_saved / (self.articles_saved + self.duplicate_count)) * 100 if (self.articles_saved + self.duplicate_count) > 0 else 0
@@ -1525,7 +1652,12 @@ class EnhancedHealthScraper:
                     elif category == 'food':
                         self._scrape_google_news_for_category(category, ['nutrition news', 'healthy food', 'diet health'])
                     elif category == 'blogs_and_opinions':
-                        self._scrape_google_news_for_category(category, ['health opinions', 'medical commentary', 'health blog'])
+                        self._scrape_google_news_for_category(category, [
+                            'health opinions', 'medical commentary', 'health blog', 
+                            'wellness blog', 'nutrition opinion', 'medical advice',
+                            'health expert opinion', 'doctor commentary', 'health column',
+                            'wellness tips', 'medical insights', 'health perspective'
+                        ])
                     elif category == 'trending':
                         self._scrape_google_news_for_category(category, ['trending health', 'viral health', 'health news'])
                     elif category == 'audience':
@@ -1590,6 +1722,13 @@ class EnhancedHealthScraper:
         except Exception as e:
             logger.error(f"Error in Google News fallback for {category}: {e}")
     
+    def run_comprehensive_scrape(self):
+        """Run complete scraping from all sources with enhanced validation"""
+        start_time = datetime.now()
+        
+        logger.info("🚀 Starting Enhanced Health News Scraper")
+        logger.info("=" * 60)
+    
     def run_quick_scrape(self):
         """Run quick scrape from high-priority sources only"""
         logger.info("⚡ Quick Health News Update")
@@ -1642,6 +1781,888 @@ def main():
         articles_saved = scraper.run_comprehensive_scrape()
     
     return articles_saved
+
+if __name__ == "__main__":
+    main()
+        
+    def create_database(self):
+        """Create articles database with optimized schema"""
+        try:
+            conn = sqlite3.connect(DB_PATH)
+            cursor = conn.cursor()
+            
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS articles (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    title TEXT NOT NULL,
+                    summary TEXT,
+                    content TEXT,
+                    url TEXT UNIQUE NOT NULL,
+                    source TEXT,
+                    date TIMESTAMP NOT NULL,
+                    categories TEXT,
+                    subcategory TEXT,
+                    tags TEXT,
+                    author TEXT,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            ''')
+            
+            # Create indexes for better performance
+            cursor.execute('CREATE INDEX IF NOT EXISTS idx_articles_date ON articles(date)')
+            cursor.execute('CREATE INDEX IF NOT EXISTS idx_articles_source ON articles(source)')
+            cursor.execute('CREATE INDEX IF NOT EXISTS idx_articles_categories ON articles(categories)')
+            cursor.execute('CREATE INDEX IF NOT EXISTS idx_articles_url ON articles(url)')
+            
+            conn.commit()
+            conn.close()
+            logger.info("Database initialized successfully")
+            
+        except Exception as e:
+            logger.error(f"Database creation error: {e}")
+    
+    def parse_rss_feed(self, url: str, timeout: int = 15) -> List[Dict]:
+        """Parse RSS feed using only standard library"""
+        articles = []
+        
+        try:
+            response = self.session.get(url, timeout=timeout)
+            response.raise_for_status()
+            
+            # Parse XML
+            root = ET.fromstring(response.content)
+            
+            # Handle different RSS formats
+            items = root.findall('.//item') or root.findall('.//{http://purl.org/rss/1.0/}item')
+            
+            for item in items:
+                try:
+                    title = self._get_text(item, ['title'])
+                    link = self._get_text(item, ['link', 'guid'])
+                    description = self._get_text(item, ['description', 'summary'])
+                    pub_date = self._get_text(item, ['pubDate', 'published', 'date'])
+                    author = self._get_text(item, ['author', 'creator', 'dc:creator'])
+                    
+                    if title and link:
+                        # Parse date
+                        parsed_date = self._parse_date(pub_date or "")
+                        
+                        # Clean description and extract meaningful summary
+                        if description:
+                            description = self._clean_html(description)
+                            # Extract more meaningful summary content
+                            description = self._extract_meaningful_summary(description, title or "")
+                            # Limit length but keep meaningful content
+                            description = description[:800] + '...' if len(description) > 800 else description
+                        
+                        articles.append({
+                            'title': (title or "Untitled").strip()[:200],
+                            'url': (link or "").strip(),
+                            'summary': description,
+                            'date': parsed_date,
+                            'author': author
+                        })
+                        
+                except Exception as e:
+                    logger.debug(f"Error parsing RSS item: {e}")
+                    continue
+                    
+        except Exception as e:
+            logger.error(f"RSS feed error for {url}: {e}")
+            
+        return articles
+    
+    def _get_text(self, element, tag_names: List[str]) -> Optional[str]:
+        """Get text from first available tag"""
+        for tag_name in tag_names:
+            try:
+                # Handle namespaced tags
+                if ':' in tag_name:
+                    namespace_map = {
+                        'dc': 'http://purl.org/dc/elements/1.1/',
+                        'content': 'http://purl.org/rss/1.0/modules/content/'
+                    }
+                    elem = element.find(tag_name, namespace_map)
+                else:
+                    elem = element.find(tag_name) or element.find(f'.//{tag_name}')
+                
+                if elem is not None and elem.text:
+                    return elem.text.strip()
+            except Exception:
+                # Try without namespace if namespaced search fails
+                try:
+                    simple_tag = tag_name.split(':')[-1]  # Get tag without namespace
+                    elem = element.find(simple_tag) or element.find(f'.//{simple_tag}')
+                    if elem is not None and elem.text:
+                        return elem.text.strip()
+                except Exception:
+                    continue
+        return None
+    
+    def _parse_date(self, date_str: str) -> datetime:
+        """Parse various date formats"""
+        if not date_str:
+            return datetime.now()
+            
+        # Common date formats
+        formats = [
+            '%a, %d %b %Y %H:%M:%S %z',
+            '%a, %d %b %Y %H:%M:%S GMT',
+            '%Y-%m-%dT%H:%M:%S%z',
+            '%Y-%m-%d %H:%M:%S',
+            '%Y-%m-%d'
+        ]
+        
+        for fmt in formats:
+            try:
+                return datetime.strptime(date_str, fmt)
+            except ValueError:
+                continue
+                
+        # If all else fails, return current time
+        logger.debug(f"Could not parse date: {date_str}")
+        return datetime.now()
+    
+    def _clean_html(self, text: str) -> str:
+        """Remove HTML tags and clean text"""
+        if not text:
+            return ""
+            
+        # Remove HTML tags
+        text = re.sub(r'<[^>]+>', '', text)
+        # Clean up whitespace
+        text = re.sub(r'\s+', ' ', text)
+        # Remove HTML entities
+        text = text.replace('&nbsp;', ' ').replace('&amp;', '&').replace('&lt;', '<').replace('&gt;', '>')
+        
+        return text.strip()
+    
+    def _extract_meaningful_summary(self, description: str, title: str) -> str:
+        """Extract meaningful summary content from description, ensuring it's unique from title"""
+        if not description:
+            return ""
+            
+        # Remove title from description if it appears at the beginning
+        if title and description.lower().startswith(title.lower()):
+            description = description[len(title):].lstrip(' .-:')
+        
+        # Remove common unwanted patterns
+        patterns_to_remove = [
+            r'Read more.*',
+            r'Click here.*',
+            r'Learn more.*',
+            r'Continue reading.*',
+            r'Full article.*',
+            r'View original.*',
+            r'\[.*?\]',  # Remove content in brackets
+            r'Source:.*',
+            r'Via:.*',
+            r'From:.*',
+            r'Share this:.*',
+            r'Subscribe to.*',
+            r'Follow us.*',
+            r'More information.*'
+        ]
+        
+        for pattern in patterns_to_remove:
+            description = re.sub(pattern, '', description, flags=re.IGNORECASE)
+        
+        # Clean up extra whitespace and punctuation
+        description = re.sub(r'\s+', ' ', description).strip()
+        description = re.sub(r'^[:\-\s\.]+', '', description)
+        description = re.sub(r'[:\-\s\.]+$', '', description)
+        
+        # Check if summary is just a duplicate of the title (case-insensitive)
+        if title and description:
+            title_clean = title.lower().strip()
+            description_clean = description.lower().strip()
+            
+            # If they're identical or very similar, return empty (will be handled by fallback)
+            if (title_clean == description_clean or 
+                description_clean in title_clean or
+                title_clean in description_clean):
+                if len(description_clean) - len(title_clean) < 20:  # Not much additional content
+                    return ""
+        
+        # If the remaining text is too short, return empty (will be handled by fallback)
+        if len(description.strip()) < 50:
+            return ""
+            
+        return description
+    
+    def _normalize_title(self, title: str) -> str:
+        """Normalize title for duplicate detection"""
+        if not title:
+            return ""
+        
+        # Convert to lowercase and remove extra whitespace
+        normalized = title.lower().strip()
+        
+        # Remove common punctuation and special characters
+        normalized = re.sub(r'[^\w\s]', ' ', normalized)
+        
+        # Remove extra whitespace
+        normalized = re.sub(r'\s+', ' ', normalized).strip()
+        
+        # Remove common prefixes that don't affect content
+        prefixes_to_remove = [
+            'new study:', 'study:', 'research:', 'scientists:', 'researchers:',
+            'breaking:', 'news:', 'alert:', 'update:'
+        ]
+        
+        for prefix in prefixes_to_remove:
+            if normalized.startswith(prefix):
+                normalized = normalized[len(prefix):].strip()
+                break
+        
+        return normalized
+    
+    def _is_duplicate_title(self, normalized_title: str) -> bool:
+        """Check if a similar title already exists in the database"""
+        if not normalized_title or len(normalized_title) < 10:
+            return False
+        
+        try:
+            conn = sqlite3.connect(DB_PATH)
+            cursor = conn.cursor()
+            
+            # Get all existing titles from the last 30 days to check for duplicates
+            cursor.execute('''
+                SELECT title FROM articles 
+                WHERE date > date('now', '-30 days')
+                ORDER BY date DESC
+                LIMIT 1000
+            ''')
+            
+            existing_titles = [row[0] for row in cursor.fetchall() if row[0]]
+            conn.close()
+            
+            # Check for exact matches or very similar titles
+            for existing_title in existing_titles:
+                existing_normalized = self._normalize_title(existing_title)
+                
+                # Exact match
+                if normalized_title == existing_normalized:
+                    return True
+                
+                # Very similar match (85% similarity)
+                if self._calculate_similarity(normalized_title, existing_normalized) > 0.85:
+                    return True
+            
+            return False
+            
+        except Exception as e:
+            logger.error(f"Error checking duplicate title: {e}")
+            return False
+    
+    def _calculate_similarity(self, title1: str, title2: str) -> float:
+        """Calculate similarity between two titles using word overlap"""
+        words1 = set(title1.split())
+        words2 = set(title2.split())
+        
+        if not words1 or not words2:
+            return 0.0
+        
+        intersection = words1.intersection(words2)
+        union = words1.union(words2)
+        
+        return len(intersection) / len(union) if union else 0.0
+    
+    def cleanup_duplicates(self):
+        """Remove duplicate articles from the database"""
+        logger.info("🧹 Cleaning up duplicate articles...")
+        
+        try:
+            conn = sqlite3.connect(DB_PATH)
+            cursor = conn.cursor()
+            
+            # Find articles with very similar titles
+            cursor.execute('''
+                SELECT id, title, url, date, source 
+                FROM articles 
+                ORDER BY date DESC
+            ''')
+            
+            articles = cursor.fetchall()
+            duplicates_found = 0
+            articles_to_keep = set()
+            articles_to_delete = set()
+            
+            for i, article1 in enumerate(articles):
+                if article1[0] in articles_to_delete:
+                    continue
+                    
+                id1, title1, url1, date1, source1 = article1
+                normalized_title1 = self._normalize_title(title1)
+                
+                # Mark this article as one to keep if not already processed
+                if article1[0] not in articles_to_delete:
+                    articles_to_keep.add(id1)
+                
+                # Compare with subsequent articles
+                for j in range(i + 1, len(articles)):
+                    article2 = articles[j]
+                    if article2[0] in articles_to_delete:
+                        continue
+                        
+                    id2, title2, url2, date2, source2 = article2
+                    normalized_title2 = self._normalize_title(title2)
+                    
+                    # Check for duplicates
+                    is_duplicate = False
+                    
+                    # Same URL
+                    if url1 == url2:
+                        is_duplicate = True
+                    
+                    # Very similar titles (90% similarity for cleanup)
+                    elif self._calculate_similarity(normalized_title1, normalized_title2) > 0.90:
+                        is_duplicate = True
+                    
+                    if is_duplicate:
+                        # Keep the one with better source or newer date
+                        if self._should_keep_article1_over_article2(article1, article2):
+                            articles_to_delete.add(id2)
+                        else:
+                            articles_to_delete.add(id1)
+                            articles_to_keep.discard(id1)
+                            break  # Don't process this article further
+                        
+                        duplicates_found += 1
+            
+            # Delete the duplicate articles
+            if articles_to_delete:
+                placeholders = ','.join(['?'] * len(articles_to_delete))
+                cursor.execute(f'DELETE FROM articles WHERE id IN ({placeholders})', list(articles_to_delete))
+                conn.commit()
+                
+                logger.info(f"🗑️  Removed {len(articles_to_delete)} duplicate articles")
+            else:
+                logger.info("✨ No duplicates found")
+            
+            conn.close()
+            return len(articles_to_delete)
+            
+        except Exception as e:
+            logger.error(f"Error cleaning up duplicates: {e}")
+            return 0
+    
+    def _should_keep_article1_over_article2(self, article1: tuple, article2: tuple) -> bool:
+        """Determine which article to keep when duplicates are found"""
+        id1, title1, url1, date1, source1 = article1
+        id2, title2, url2, date2, source2 = article2
+        
+        # Prefer certain sources
+        preferred_sources = [
+            'WHO Health News', 'NIH News Releases', 'CDC Health News',
+            'Harvard Nutrition Source', 'BBC Health', 'NPR Health'
+        ]
+        
+        source1_preferred = any(pref in source1 for pref in preferred_sources)
+        source2_preferred = any(pref in source2 for pref in preferred_sources)
+        
+        if source1_preferred and not source2_preferred:
+            return True
+        elif source2_preferred and not source1_preferred:
+            return False
+        
+        # If both or neither are preferred, choose the newer one
+        try:
+            date1_obj = datetime.fromisoformat(date1.replace('Z', '+00:00'))
+            date2_obj = datetime.fromisoformat(date2.replace('Z', '+00:00'))
+            return date1_obj > date2_obj
+        except:
+            # If date parsing fails, keep the first one
+            return True
+    
+    def categorize_article(self, article: Dict) -> Tuple[str, List[str]]:
+        """Smart categorization based on title and content using category keywords from YAML"""
+        title = article.get('title', '').lower()
+        summary = article.get('summary', '').lower()
+        content = title + ' ' + summary
+        
+        # Load category keywords from YAML file
+        try:
+            import yaml
+            from pathlib import Path
+            config_path = Path(__file__).parent.parent / "config" / "category_keywords.yml"
+            with open(config_path, 'r', encoding='utf-8') as f:
+                categories_data = yaml.safe_load(f)
+        except Exception as e:
+            logger.warning(f"Could not load category keywords: {e}")
+            # Fallback to basic categorization
+            return self._basic_categorization(content)
+        
+        # Ensure we have the categories structure
+        if not categories_data or 'categories' not in categories_data:
+            logger.warning("Invalid category_keywords.yml structure")
+            return self._basic_categorization(content)
+        
+        categories = categories_data['categories']
+        
+        # Find best matching category and subcategories
+        best_category = 'news'  # Default fallback
+        best_subcategories = []
+        max_score = 0
+        
+        for category_name, category_info in categories.items():
+            if not isinstance(category_info, dict) or 'tags' not in category_info:
+                continue
+                
+            category_score = 0
+            matched_subcategories = []
+            
+            # Check each tag in this category
+            for tag in category_info['tags']:
+                tag_lower = tag.lower()
+                
+                # Count keyword matches in content (weighted by importance)
+                title_matches = content.count(tag_lower)
+                if title_matches > 0:
+                    # Higher weight for title matches
+                    weight = 3 if tag_lower in title else 1
+                    category_score += title_matches * weight
+                    
+                    # Map subcategory based on keyword match
+                    subcategory = self._map_keyword_to_subcategory(tag_lower, category_name)
+                    if subcategory and subcategory not in matched_subcategories:
+                        matched_subcategories.append(subcategory)
+            
+            # Update best match if this category scored higher
+            if category_score > max_score:
+                max_score = category_score
+                best_category = category_name
+                best_subcategories = matched_subcategories
+        
+        # Ensure we have at least one subcategory
+        if not best_subcategories:
+            best_subcategories = self._get_default_subcategory(best_category)
+        
+        return best_category, best_subcategories
+    
+    def _map_keyword_to_subcategory(self, keyword: str, category: str) -> Optional[str]:
+        """Map a matched keyword to its appropriate subcategory"""
+        
+        # Disease category mappings
+        if category == 'diseases':
+            diabetes_keywords = ['diabetes', 'blood sugar', 'insulin', 'glucose', 'diabetic', 'hyperglycemia', 'hypoglycemia']
+            obesity_keywords = ['obesity', 'overweight', 'weight gain', 'bmi', 'body mass index', 'weight management']
+            cardio_keywords = ['heart disease', 'cardiovascular', 'cardiac', 'heart attack', 'stroke', 'hypertension', 'high blood pressure']
+            inflammation_keywords = ['inflammation', 'inflammatory', 'anti-inflammatory', 'chronic inflammation']
+            liver_keywords = ['liver', 'hepatic', 'liver disease', 'fatty liver', 'cirrhosis', 'hepatitis']
+            kidney_keywords = ['kidney', 'renal', 'kidney disease', 'kidney stone', 'dialysis']
+            thyroid_keywords = ['thyroid', 'hypothyroid', 'hyperthyroid', 'thyroid gland']
+            metabolic_keywords = ['metabolism', 'metabolic', 'metabolic syndrome', 'metabolic disorder']
+            sleep_keywords = ['sleep disorder', 'insomnia', 'sleep apnea', 'sleep health']
+            skin_keywords = ['skin', 'dermatology', 'acne', 'eczema', 'psoriasis', 'dermatitis']
+            eyes_ears_keywords = ['eye', 'vision', 'ear', 'hearing', 'ophthalmology', 'audiology']
+            reproductive_keywords = ['reproductive health', 'fertility', 'infertility', 'sexual health']
+            
+            if any(k in keyword for k in diabetes_keywords):
+                return 'diabetes'
+            elif any(k in keyword for k in obesity_keywords):
+                return 'obesity'
+            elif any(k in keyword for k in cardio_keywords):
+                return 'cardiovascular'
+            elif any(k in keyword for k in inflammation_keywords):
+                return 'inflammation'
+            elif any(k in keyword for k in liver_keywords):
+                return 'liver'
+            elif any(k in keyword for k in kidney_keywords):
+                return 'kidney'
+            elif any(k in keyword for k in thyroid_keywords):
+                return 'thyroid'
+            elif any(k in keyword for k in metabolic_keywords):
+                return 'metabolic'
+            elif any(k in keyword for k in sleep_keywords):
+                return 'sleep disorders'
+            elif any(k in keyword for k in skin_keywords):
+                return 'skin'
+            elif any(k in keyword for k in eyes_ears_keywords):
+                return 'eyes and ears'
+            elif any(k in keyword for k in reproductive_keywords):
+                return 'reproductive health'
+        
+        # Solutions category mappings
+        elif category == 'solutions':
+            nutrition_keywords = ['nutrition', 'dietary', 'vitamins', 'minerals', 'balanced diet', 'healthy eating']
+            fitness_keywords = ['fitness', 'exercise', 'workout', 'physical activity', 'training', 'cardio', 'strength']
+            lifestyle_keywords = ['lifestyle', 'daily habits', 'routine', 'behavior modification', 'healthy habits']
+            wellness_keywords = ['wellness', 'wellbeing', 'holistic health', 'self-care', 'meditation', 'mindfulness']
+            prevention_keywords = ['prevention', 'preventive', 'screening', 'vaccination', 'checkup', 'early detection']
+            
+            if any(k in keyword for k in nutrition_keywords):
+                return 'nutrition'
+            elif any(k in keyword for k in fitness_keywords):
+                return 'fitness'
+            elif any(k in keyword for k in lifestyle_keywords):
+                return 'lifestyle'
+            elif any(k in keyword for k in wellness_keywords):
+                return 'wellness'
+            elif any(k in keyword for k in prevention_keywords):
+                return 'prevention'
+        
+        # Food category mappings
+        elif category == 'food':
+            natural_keywords = ['natural food', 'organic', 'whole foods', 'unprocessed', 'superfood', 'antioxidants']
+            organic_keywords = ['organic food', 'organic farming', 'pesticide free', 'chemical free', 'sustainable food']
+            processed_keywords = ['processed food', 'ultra processed', 'packaged food', 'fast food', 'junk food']
+            seafood_keywords = ['fish', 'seafood', 'salmon', 'tuna', 'shellfish', 'omega-3 fish']
+            safety_keywords = ['food safety', 'food poisoning', 'contamination', 'food recall', 'hygiene']
+            
+            if any(k in keyword for k in natural_keywords):
+                return 'natural food'
+            elif any(k in keyword for k in organic_keywords):
+                return 'organic food'
+            elif any(k in keyword for k in processed_keywords):
+                return 'processed food'
+            elif any(k in keyword for k in seafood_keywords):
+                return 'fish and seafood'
+            elif any(k in keyword for k in safety_keywords):
+                return 'food safety'
+        
+        # Audience category mappings
+        elif category == 'audience':
+            women_keywords = ["women's health", 'female health', 'pregnancy', 'menstruation', 'menopause', 'women', 'female']
+            men_keywords = ["men's health", 'male health', 'prostate', 'testosterone', 'men', 'male']
+            children_keywords = ["children's health", 'pediatric', 'child health', 'kids health', 'children', 'kids', 'child']
+            teen_keywords = ['teen health', 'teenage health', 'adolescent health', 'teenagers', 'teens', 'adolescent']
+            senior_keywords = ['elderly health', 'senior health', 'aging', 'geriatric', 'seniors', 'elderly']
+            athlete_keywords = ['sports medicine', 'athlete health', 'sports nutrition', 'athletes', 'performance']
+            family_keywords = ['family health', 'household health', 'family wellness', 'families', 'family']
+            
+            if any(k in keyword for k in women_keywords):
+                return 'women'
+            elif any(k in keyword for k in men_keywords):
+                return 'men'
+            elif any(k in keyword for k in children_keywords):
+                return 'children'
+            elif any(k in keyword for k in teen_keywords):
+                return 'teenagers'
+            elif any(k in keyword for k in senior_keywords):
+                return 'seniors'
+            elif any(k in keyword for k in athlete_keywords):
+                return 'athletes'
+            elif any(k in keyword for k in family_keywords):
+                return 'families'
+        
+        # Trending category mappings
+        elif category == 'trending':
+            gut_keywords = ['gut health', 'microbiome', 'digestive health', 'probiotics', 'gut bacteria']
+            mental_keywords = ['mental health', 'psychological health', 'depression', 'anxiety', 'stress']
+            hormone_keywords = ['hormones', 'hormonal health', 'hormone balance', 'testosterone', 'estrogen']
+            addiction_keywords = ['addiction', 'substance abuse', 'dependency', 'addiction recovery']
+            sleep_keywords = ['sleep health', 'sleep wellness', 'sleep quality', 'sleep hygiene']
+            sexual_keywords = ['sexual wellness', 'sexual health', 'intimate health', 'reproductive wellness']
+            
+            if any(k in keyword for k in gut_keywords):
+                return 'gut health'
+            elif any(k in keyword for k in mental_keywords):
+                return 'mental health'
+            elif any(k in keyword for k in hormone_keywords):
+                return 'hormones'
+            elif any(k in keyword for k in addiction_keywords):
+                return 'addiction'
+            elif any(k in keyword for k in sleep_keywords):
+                return 'sleep health'
+            elif any(k in keyword for k in sexual_keywords):
+                return 'sexual wellness'
+        
+        # News category mappings
+        elif category == 'news':
+            latest_keywords = ['latest', 'recent', 'new', 'breaking news', 'urgent', 'today']
+            policy_keywords = ['policy and regulation', 'health policy', 'medical regulation', 'government policy']
+            govt_keywords = ['govt schemes', 'government schemes', 'public health programs', 'health initiatives']
+            international_keywords = ['international', 'global health', 'world health', 'who']
+            
+            if any(k in keyword for k in latest_keywords):
+                return 'latest'
+            elif any(k in keyword for k in policy_keywords):
+                return 'policy and regulation'
+            elif any(k in keyword for k in govt_keywords):
+                return 'govt schemes'
+            elif any(k in keyword for k in international_keywords):
+                return 'international'
+        
+        return None
+    
+    def _get_default_subcategory(self, category: str) -> List[str]:
+        """Get default subcategory for a category if no specific match found"""
+        defaults = {
+            'diseases': ['metabolic'],
+            'solutions': ['wellness'],
+            'food': ['natural food'],
+            'audience': ['families'],
+            'trending': ['gut health'],
+            'news': ['latest'],
+            'blogs_and_opinions': []
+        }
+        return defaults.get(category, ['general'])
+    
+    def _basic_categorization(self, content: str) -> Tuple[str, List[str]]:
+        """Fallback basic categorization if YAML file unavailable"""
+        if any(word in content for word in ['diabetes', 'blood sugar', 'insulin', 'glucose']):
+            return 'diseases', ['diabetes', 'metabolic']
+        elif any(word in content for word in ['cancer', 'tumor', 'oncology', 'chemotherapy']):
+            return 'diseases', ['cancer', 'treatment']
+        elif any(word in content for word in ['heart', 'cardiac', 'cardiovascular', 'cholesterol']):
+            return 'diseases', ['cardiovascular', 'heart']
+        elif any(word in content for word in ['mental health', 'depression', 'anxiety', 'stress']):
+            return 'diseases', ['mental health', 'wellness']
+        elif any(word in content for word in ['nutrition', 'diet', 'food', 'eating']):
+            return 'food', ['nutrition', 'diet']
+        elif any(word in content for word in ['exercise', 'fitness', 'workout', 'physical activity']):
+            return 'solutions', ['fitness', 'exercise']
+        elif any(word in content for word in ['vaccine', 'vaccination', 'immunization']):
+            return 'solutions', ['prevention', 'vaccination']
+        elif any(word in content for word in ['who', 'policy', 'government', 'health policy']):
+            return 'news', ['policy', 'government']
+        elif any(word in content for word in ['research', 'study', 'clinical trial']):
+            return 'news', ['research', 'study']
+        else:
+            return 'news', ['general']
+    
+    def save_article(self, article: Dict, source_name: str, source_tags: List[str]) -> bool:
+        """Save article to database with validation and deduplication"""
+        try:
+            # URL validation
+            if self.url_validator:
+                is_valid, info = self.url_validator.validate_article_url(article)
+                if not is_valid:
+                    logger.debug(f"Invalid URL rejected: {article.get('url')} - {info.get('error')}")
+                    return False
+            
+            # Check for duplicate titles (case-insensitive, normalized)
+            normalized_title = self._normalize_title(article['title'])
+            if self._is_duplicate_title(normalized_title):
+                logger.debug(f"Duplicate title skipped: {article['title'][:60]}...")
+                self.duplicate_count += 1
+                return False
+            
+            # Ensure summary is unique from title
+            title = article.get('title', '')
+            summary = article.get('summary', '')
+            
+            # If summary is identical to title or very similar, generate a better one
+            if summary and title:
+                title_clean = title.lower().strip()
+                summary_clean = summary.lower().strip()
+                
+                # Check if summary is just title or very similar
+                if (title_clean == summary_clean or 
+                    summary_clean in title_clean or 
+                    len(summary_clean) - len(title_clean) < 20):
+                    # Generate a contextual summary instead
+                    article['summary'] = self._generate_contextual_summary(title, source_name)
+                    logger.debug(f"Generated unique summary for: {title[:50]}...")
+            elif not summary:
+                # Generate summary if missing
+                article['summary'] = self._generate_contextual_summary(title, source_name)
+            
+            # Categorize article using YAML mappings
+            category, auto_tags = self.categorize_article(article)
+            all_tags = list(set(source_tags + auto_tags))
+            
+            conn = sqlite3.connect(DB_PATH)
+            cursor = conn.cursor()
+            
+            cursor.execute('''
+                INSERT OR IGNORE INTO articles 
+                (title, summary, url, source, date, categories, tags, authors, subcategory)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (
+                article['title'],
+                article.get('summary'),
+                article['url'],
+                source_name,
+                article['date'],
+                category,
+                json.dumps(all_tags),
+                article.get('author'),
+                json.dumps(auto_tags) if auto_tags else None  # Store subcategories in subcategory field
+            ))
+            
+            if cursor.rowcount > 0:
+                conn.commit()
+                logger.debug(f"Saved: {article['title'][:60]}... [Category: {category}, Tags: {auto_tags}]")
+                self.articles_saved += 1
+                result = True
+            else:
+                self.duplicate_count += 1
+                result = False
+                
+            conn.close()
+            return result
+            
+        except Exception as e:
+            logger.error(f"Error saving article: {e}")
+            self.error_count += 1
+            return False
+    
+    def _generate_contextual_summary(self, title: str, source: str) -> str:
+        """Generate a contextual summary when original is missing or duplicate"""
+        if not title:
+            return "Health and wellness information from medical experts."
+        
+        title_lower = title.lower()
+        
+        # Generate specific summaries based on content
+        if 'diabetes' in title_lower:
+            return "Comprehensive information about diabetes management, blood sugar control, and treatment options for better health outcomes."
+        elif 'heart' in title_lower or 'cardiovascular' in title_lower:
+            return "Heart health information including cardiovascular disease prevention, treatment advances, and lifestyle recommendations."
+        elif 'nutrition' in title_lower or 'diet' in title_lower:
+            return "Evidence-based nutritional guidance and dietary recommendations for optimal health and wellness."
+        elif 'obesity' in title_lower or 'weight' in title_lower:
+            return "Weight management strategies, obesity prevention methods, and healthy lifestyle guidance from healthcare professionals."
+        elif 'cancer' in title_lower:
+            return "Important cancer information including prevention strategies, treatment advances, and patient care updates."
+        elif 'mental health' in title_lower or 'depression' in title_lower or 'anxiety' in title_lower:
+            return "Mental health resources, treatment information, and emotional wellbeing guidance from healthcare experts."
+        elif 'vaccine' in title_lower or 'vaccination' in title_lower:
+            return "Vaccination information, safety data, and immunization guidelines from public health authorities."
+        elif 'research' in title_lower or 'study' in title_lower:
+            return "Medical research findings and scientific studies with implications for patient care and health outcomes."
+        elif 'food' in title_lower or 'organic' in title_lower:
+            return "Food and nutrition information focusing on healthy eating, food safety, and dietary recommendations."
+        else:
+            # Source-specific defaults
+            if 'who' in source.lower():
+                return "World Health Organization health updates and international health guidance for global communities."
+            elif 'cdc' in source.lower():
+                return "Centers for Disease Control health information and public health guidance for disease prevention."
+            elif 'nih' in source.lower():
+                return "National Institutes of Health research updates and medical information from leading scientists."
+            else:
+                return "Health information and medical insights from healthcare professionals and trusted medical sources."
+    
+    def scrape_rss_sources(self, source_list: List[Dict], max_articles_per_source: int = 50):
+        """Scrape all RSS sources in a list"""
+        for source in source_list:
+            logger.info(f"📡 Scraping {source['name']}...")
+            
+            try:
+                articles = self.parse_rss_feed(source['url'])
+                
+                if not articles:
+                    logger.warning(f"   No articles found from {source['name']}")
+                    continue
+                
+                saved_count = 0
+                for article in articles[:max_articles_per_source]:
+                    if self.save_article(article, source['name'], source.get('tags', [])):
+                        saved_count += 1
+                    
+                    # Small delay between articles
+                    time.sleep(0.1)
+                
+                logger.info(f"   ✅ {saved_count} articles saved from {source['name']}")
+                
+            except Exception as e:
+                logger.error(f"   ❌ Error scraping {source['name']}: {e}")
+                self.error_count += 1
+            
+            # Delay between sources
+            time.sleep(1)
+    
+    def scrape_google_news(self, max_keywords: int = 10):
+        """Scrape Google News for health topics"""
+        logger.info("📰 Scraping Google News health topics...")
+        
+        keywords_to_use = self.google_news_keywords[:max_keywords]
+        
+        for keyword in keywords_to_use:
+            try:
+                # Google News RSS URL
+                url = f"https://news.google.com/rss/search?q={quote_plus(keyword)}&hl=en-US&gl=US&ceid=US:en"
+                
+                articles = self.parse_rss_feed(url)
+                
+                saved_count = 0
+                for article in articles[:20]:  # Limit per keyword
+                    if self.save_article(article, f"Google News ({keyword})", [keyword, "google_news"]):
+                        saved_count += 1
+                
+                if saved_count > 0:
+                    logger.info(f"   ✅ {saved_count} articles for '{keyword}'")
+                
+                time.sleep(2)  # Respectful delay
+                
+            except Exception as e:
+                logger.error(f"   ❌ Error with keyword '{keyword}': {e}")
+    
+    def run_comprehensive_scrape(self):
+        """Run complete scraping from all sources"""
+        start_time = datetime.now()
+        
+        logger.info("🚀 Starting Health News Scraper")
+        logger.info("=" * 60)
+        
+        # Create/verify database
+        self.create_database()
+        
+        # Scrape RSS sources by priority
+        logger.info("📡 Phase 1: Major Health Organizations...")
+        priority_1_sources = [s for s in self.rss_sources if s.get('priority', 3) == 1]
+        self.scrape_rss_sources(priority_1_sources, max_articles_per_source=30)
+        
+        logger.info("📺 Phase 2: Major News Outlets...")
+        priority_2_sources = [s for s in self.rss_sources if s.get('priority', 3) == 2]
+        self.scrape_rss_sources(priority_2_sources, max_articles_per_source=25)
+        
+        logger.info("🏥 Phase 3: Health Publications...")
+        priority_3_sources = [s for s in self.rss_sources if s.get('priority', 3) == 3]
+        self.scrape_rss_sources(priority_3_sources, max_articles_per_source=20)
+        
+        logger.info("🌍 Phase 4: International Sources...")
+        self.scrape_rss_sources(self.international_sources, max_articles_per_source=15)
+        
+        logger.info("💬 Phase 5: Social Media Sources...")
+        self.scrape_rss_sources(self.social_sources, max_articles_per_source=10)
+        
+        logger.info("🔍 Phase 6: Google News Topics...")
+        self.scrape_google_news(max_keywords=8)
+        
+        # Final report
+        end_time = datetime.now()
+        duration = (end_time - start_time).total_seconds()
+        
+        logger.info("\n" + "=" * 60)
+        logger.info("✅ HEALTH SCRAPER COMPLETE")
+        logger.info("=" * 60)
+        logger.info(f"⏱️  Duration: {duration:.1f} seconds")
+        logger.info(f"📰 Articles Saved: {self.articles_saved}")
+        logger.info(f"🔄 Duplicates Skipped: {self.duplicate_count}")
+        logger.info(f"❌ Errors: {self.error_count}")
+        
+        if self.articles_saved > 0:
+            logger.info(f"\n🎉 SUCCESS: {self.articles_saved} health articles collected!")
+            logger.info("📱 Start your API server to access the content:")
+            logger.info("   python start.py")
+            logger.info("   Visit: http://localhost:8000/docs")
+        else:
+            logger.info(f"\n⚠️  No new articles saved")
+            logger.info("   • Check internet connection")
+            logger.info("   • Articles may already exist in database")
+        
+        return self.articles_saved
+    
+    def run_quick_scrape(self):
+        """Run quick scrape from high-priority sources only"""
+        logger.info("⚡ Quick Health News Update")
+        logger.info("=" * 40)
+        
+        self.create_database()
+        
+        # Only priority 1 and 2 sources
+        high_priority_sources = [s for s in self.rss_sources if s.get('priority', 3) <= 2]
+        self.scrape_rss_sources(high_priority_sources, max_articles_per_source=15)
+        
+        # Limited Google News
+        self.scrape_google_news(max_keywords=3)
+        
+        logger.info(f"\n⚡ Quick update complete: {self.articles_saved} articles saved")
+        return self.articles_saved
 
 if __name__ == "__main__":
     main()

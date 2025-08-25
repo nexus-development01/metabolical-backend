@@ -1,49 +1,40 @@
-# 🏥 Metabolical Backend API - Version 2.1.0
-
-A production-ready FastAPI backend f# Database operates automatically with the API
-# Articles are stored with automatic duplicate prevention
-# SQLite database with optimized schema and indexing
-```
-
-### Example API Usage:
-````s with intelligent search, automated categorization, background scraping, and comprehensive database management.
+# 🏥 Metabolical Backend API 
+A production-ready FastAPI backend for health article aggregation with intelligent search, automated categorization, background scraping, and comprehensive RSS feed management.
 
 ## ⭐ Key Features
 
 ✅ **Duplicate-Free Content** - Intelligent deduplication ensures unique articles  
-✅ **Smart Categorization** - AI-powered content classification  
+✅ **Smart Categorization** - AI-powered content classification with 7+ categories  
 ✅ **Background Scraping** - Automated content collection from 20+ health sources  
 ✅ **Advanced Search** - Full-text search with filtering and pagination  
 ✅ **Production Ready** - Optimized for deployment with health monitoring  
-✅ **Database Management** - Comprehensive tools for maintenance and optimization  
+✅ **Robust RSS Handling** - Advanced feed validation, retry logic, and error handling  
+✅ **Consolidated Configuration** - Single YAML file for all settings  
 
 ## 📁 Project Structure
 
 ```
-metabolical-backend/
-├── app/                           # 🚀 Core Application
+metabolical-backend-main/
+├── app/                          # 🚀 Core Application
 │   ├── main.py                   # FastAPI application with dual API structure
 │   ├── utils.py                  # Database utilities and search functions
 │   ├── url_validator.py          # URL validation and health checks
-│   ├── scheduler.py              # Background task scheduler
+│   ├── scheduler.py              # Background task scheduler with async support
 │   └── __init__.py               # Package initialization
 ├── config/                       # ⚙️ Configuration
-│   ├── config.yml                # Consolidated configuration (all settings)
-│   └── __init__.py               # Package initialization
+│   └── config.yml                # 🆕 Consolidated configuration (all settings)
 ├── scrapers/                     # 🕷️ Content Collection
-│   ├── scraper.py                # Enhanced health news scraper
+│   ├── scraper.py                # Enhanced health news scraper with robust RSS handling
 │   └── __init__.py               # Package initialization
 ├── data/                         # 💾 Database Storage
 │   └── articles.db               # SQLite database with optimized schema
 ├── start.py                      # 🎯 Server startup script
 ├── .env.example                  # 🔧 Environment configuration template
-├── .gitignore                    # Git ignore rules
-├── .dockerignore                 # Docker ignore rules
 ├── Dockerfile                    # 🐳 Container configuration
 ├── build.sh                      # 🔧 Build script for deployment
 ├── render.yaml                   # ☁️ Cloud deployment configuration
 ├── requirements.txt              # 📦 Python dependencies
-└── README.md                     # 📖 Documentation
+└── README.md                     # 📖 This documentation
 ```
 
 ## 🚀 Quick Start
@@ -61,7 +52,7 @@ cp .env.example .env
 # Edit .env file as needed
 ```
 
-### 2. Database Management
+### 2. Verify Installation
 ```bash
 # Basic health check
 python -c "from app.main import app; print('✅ API is ready')"
@@ -72,8 +63,8 @@ python -c "from app.main import app; print('✅ API is ready')"
 # Development
 python start.py
 
-# Production
-python start.py --host 0.0.0.0 --port $PORT
+# Production with Gunicorn
+gunicorn app.main:app --host 0.0.0.0 --port 8000 --workers 4
 ```
 
 ### 4. Access the API
@@ -90,294 +81,266 @@ The database operates automatically with the API. Here are the key features:
 - **WAL mode** for better concurrent access
 - **Built-in health monitoring** via API endpoints
 
-# Clean up duplicates and optimize
-python manage_db.py clean
-```
-
-### Example Output:
-```
-🏥 DATABASE HEALTH REPORT
-==================================================
-Total Articles: 2,146
-Database Size: 15.8 MB
-Duplicate Urls: 0
-Duplicate Titles: 0
-Has Url Unique Constraint: True
-✅ Database is healthy!
-```
-
-## 📋 API Endpoints
-
-### V1 API Endpoints (Recommended)
-All v1 endpoints are under `/api/v1` prefix:
-
-#### 🔍 Search Endpoints
+### Example API Usage:
 ```bash
-# Primary search
-GET /api/v1/search?q={query}&page=1&limit=20
-
-# Alternative search
-GET /api/v1/articles/search?q={query}
-
-# Date-filtered search
-GET /api/v1/search?q={query}&start_date=2025-01-01&end_date=2025-12-31
-
-# Sorted search
-GET /api/v1/search?q={query}&sort_by=asc
-```
-
-#### 📂 Category & Tag Endpoints
-```bash
-# Browse by category
-GET /api/v1/category/{category}
-
-# Browse by tag
-GET /api/v1/tag/{tag}
-
-# List all categories
-GET /api/v1/categories
-
-# List all tags
-GET /api/v1/tags
-```
-
-#### 🏥 Monitoring Endpoints
-```bash
-# Health check
-GET /api/v1/health
-
-# API statistics
-GET /api/v1/stats
-
-# Scheduler status
-GET /api/v1/scheduler/status
-
-# Trigger manual scrape
-POST /api/v1/scheduler/trigger?scrape_type=quick
-```
-
-### Base API Endpoints (Direct Access)
-```bash
-GET /search?q={query}           # Direct search
-GET /category/{category}        # Direct category access
-GET /tag/{tag}                  # Direct tag access
-```
-
-## 🔍 Usage Examples
-
-### Search Operations
-```bash
-# Search for diabetes articles
+# Search for articles
 curl "http://localhost:8000/api/v1/search?q=diabetes&limit=10"
 
-# Search with pagination
-curl "http://localhost:8000/api/v1/search?q=nutrition&page=2&limit=5"
+# Get articles by category
+curl "http://localhost:8000/api/v1/articles/category/chronic-diseases?limit=5"
 
-# Date-filtered search
-curl "http://localhost:8000/api/v1/search?q=covid&start_date=2025-01-01"
-```
-
-### Category Browsing
-```bash
-# Get disease articles
-curl "http://localhost:8000/api/v1/category/diseases?limit=15"
-
-# Get nutrition solutions
-curl "http://localhost:8000/api/v1/category/solutions"
-
-# List all categories
-curl "http://localhost:8000/api/v1/categories"
-```
-
-### Health Monitoring
-```bash
-# Check API health
+# Health check
 curl "http://localhost:8000/api/v1/health"
-
-# Get statistics
-curl "http://localhost:8000/api/v1/stats"
 ```
 
-## 📊 Response Format
+## 🔧 RSS Feed Management & Error Handling
 
-All endpoints return JSON with consistent pagination:
+### Current Feed Status & Issues
 
-```json
-{
-  "articles": [
-    {
-      "id": 123,
-      "title": "Understanding Diabetes",
-      "summary": "Comprehensive guide to diabetes management...",
-      "url": "https://source.com/article",
-      "source": "Health News",
-      "date": "2025-08-25T10:00:00",
-      "category": "diseases",
-      "subcategory": "diabetes",
-      "tags": ["health", "diabetes", "medical"]
-    }
-  ],
-  "total": 150,
-  "page": 1,
-  "limit": 20,
-  "total_pages": 8,
-  "has_next": true,
-  "has_previous": false
+The scraper includes robust error handling for common RSS feed issues:
+
+#### 🚨 **Known Issues Fixed in v3.0:**
+
+1. **Dead/Invalid Feeds Handled:**
+   - ❌ `https://www.sciencedaily.com/rss/health_medicine/environmental_health.xml` (404)
+   - ❌ `https://www.eurekalert.org/rss/health_medicine.xml` (404)
+   - ✅ **Solution**: Automatic feed validation with fallback sources
+
+2. **403 Forbidden Errors Resolved:**
+   - ❌ `https://www.medicalnewstoday.com/rss/nutrition.xml` (403 Forbidden)
+   - ✅ **Solution**: Enhanced User-Agent headers and retry logic
+
+3. **Network Reliability Improved:**
+   - ✅ Exponential backoff retry mechanism
+   - ✅ Timeout handling with graceful degradation
+   - ✅ Connection pooling and session management
+
+### 🔧 **Advanced RSS Features:**
+
+#### **Robust Request Handling**
+```python
+# Enhanced headers to avoid bot detection
+headers = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/117.0",
+    "Accept": "application/rss+xml, application/xml, text/xml, */*",
+    "Accept-Language": "en-US,en;q=0.9"
 }
+
+# Retry logic with exponential backoff
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
+
+retry_strategy = Retry(
+    total=5,
+    backoff_factor=1,
+    status_forcelist=[403, 404, 429, 500, 502, 503, 504]
+)
 ```
 
-## 🐳 Deployment
+#### **Smart Feed Validation**
+- ✅ Pre-scraping feed validation
+- ✅ Blacklist management for problematic feeds
+- ✅ Alternative feed suggestions
+- ✅ Automatic retry scheduling
 
-### Docker
+#### **Structured Logging**
+```python
+import logging
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s"
+)
+```
+
+## 🐳 Docker Deployment
+
 ```bash
 # Build image
 docker build -t metabolical-backend .
 
 # Run container
 docker run -p 8000:8000 metabolical-backend
+
+# With environment variables
+docker run -p 8000:8000 -e DEBUG=false metabolical-backend
 ```
 
-### Cloud Deployment (Render.com)
-1. Connect GitHub repository
-2. Use `render.yaml` configuration
-3. Deploy automatically
+## ☁️ Cloud Deployment (Render.com)
 
-### Environment Variables
+The included `render.yaml` provides one-click deployment:
+
+```yaml
+services:
+  - type: web
+    name: metabolical-backend
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: python start.py
+```
+
+## 🔍 API Endpoints
+
+### Core Endpoints
+- `GET /api/v1/health` - Health check and system status
+- `GET /api/v1/search` - Full-text search with filters
+- `GET /api/v1/articles` - Paginated article listing
+- `GET /api/v1/articles/category/{category}` - Articles by category
+- `GET /api/v1/categories` - Available categories
+- `GET /api/v1/stats` - Database statistics
+
+### Legacy Compatibility
+- `GET /search` - Legacy search endpoint
+- `GET /articles` - Legacy article listing
+- `GET /categories` - Legacy categories
+
+## 📊 Background Scraping
+
+The scheduler runs automatically and includes:
+
+- **Full Scrape**: Every 12 hours (comprehensive collection)
+- **Quick Scrape**: Every 15 minutes (priority sources only)
+- **Parallel Processing**: Up to 5 concurrent sources
+- **Smart Throttling**: Respectful delays and rate limiting
+
+### Manual Triggers
 ```bash
-PORT=8000                       # Server port
-HOST=0.0.0.0                   # Server host (0.0.0.0 for production)
-DEBUG=false                    # Debug mode
-DATABASE_PATH=data/articles.db # Database location
-PUBLIC_URL=https://api.example.com  # Public API URL
+# Trigger manual scraping via API
+curl -X POST "http://localhost:8000/api/v1/scraper/trigger?type=quick"
+curl -X POST "http://localhost:8000/api/v1/scraper/trigger?type=full"
 ```
 
-## 📈 Performance Features
+## 🧪 Testing
 
-- ✅ **SQLite WAL Mode** - Optimized concurrent access
-- ✅ **Smart Indexing** - Multi-column indexes for fast queries
-- ✅ **Connection Pooling** - Efficient database connections
-- ✅ **Response Caching** - LRU cache for frequent requests
-- ✅ **Background Processing** - Non-blocking scrapers
-- ✅ **Gzip Compression** - Automatic response compression
-- ✅ **Rate Limiting** - Protection against abuse
+```bash
+# Test API endpoints
+python -c "
+import requests
+resp = requests.get('http://localhost:8000/api/v1/health')
+print('Status:', resp.status_code)
+print('Response:', resp.json())
+"
 
-## 🔧 Configuration
+# Test search functionality
+curl "http://localhost:8000/api/v1/search?q=health&limit=5"
+```
 
-### Categories Available
-- `diseases` - Medical conditions and health issues
-- `news` - Health news and recent developments
-- `solutions` - Treatment and prevention methods
-- `food` - Nutrition and dietary information
-- `audience` - Target demographic content
-- `blogs_and_opinions` - Expert opinions and patient stories
+## 🐛 Troubleshooting
 
-### Data Sources (20+ Health Sources)
-- **Government**: WHO, CDC, NIH
-- **Academic**: Harvard Health, Medical Research
-- **News**: BBC Health, NPR Health, Reuters Health
-- **Medical**: Medical Xpress, ScienceDaily
-- **Specialized**: Nutrition research, diabetes news
+### Common Issues
 
-## 🛡️ Data Quality & Integrity
-
-### ✅ Duplicate Prevention
-- **Database-level UNIQUE constraints** on URLs
-- **Real-time duplicate detection** during scraping
-- **Smart title normalization** to catch near-duplicates
-- **Comprehensive cleanup tools** via `manage_db.py`
-
-### ✅ Content Quality
-- **URL validation** and accessibility checks
-- **Smart summary generation** for better descriptions
-- **Content categorization** using AI-powered classification
-- **Source reliability** tracking and prioritization
-
-### ✅ Performance Optimization
-- **Multi-column database indexes** for fast searches
-- **Query optimization** with DISTINCT clauses
-- **Background processing** for non-blocking operations
-- **Connection pooling** and caching strategies
-
-## 🚨 Troubleshooting
-
-### Common Issues & Solutions
-
-1. **Database Issues**
+1. **Module Import Errors**
    ```bash
-   # Check database health
-   python manage_db.py check
-   
-   # Fix schema and duplicates
-   python manage_db.py fix
+   # Ensure you're in the project directory
+   cd metabolical-backend-main
+   python -c "from app.main import app"
    ```
 
-2. **Duplicate Articles**
+2. **Database Issues**
    ```bash
-   # Analyze duplicates
-   python manage_db.py duplicates
-   
-   # Clean up duplicates
-   python manage_db.py clean
+   # Check database status
+   python -c "
+   from app.utils import get_db_stats
+   print(get_db_stats())
+   "
    ```
 
-3. **Server Issues**
+3. **RSS Feed Issues**
    ```bash
-   # Check server health
+   # Check feed validation status
    curl "http://localhost:8000/api/v1/health"
-   
-   # Restart server (stop with Ctrl+C)
-   python start.py
    ```
 
 4. **Performance Issues**
    ```bash
-   # View database statistics
-   python manage_db.py stats
-   
-   # Optimize database
-   python manage_db.py fix
+   # Check system resources and database size
+   python -c "
+   import sqlite3
+   conn = sqlite3.connect('data/articles.db')
+   count = conn.execute('SELECT COUNT(*) FROM articles').fetchone()[0]
+   print(f'Articles in database: {count}')
+   conn.close()
+   "
    ```
 
-### Health Monitoring
-- **API Health**: `/api/v1/health` - Database connectivity and status
-- **Statistics**: `/api/v1/stats` - Usage metrics and performance data
-- **Scheduler**: `/api/v1/scheduler/status` - Background task monitoring
+5. **Network/RSS Connectivity**
+   ```bash
+   # Test RSS feed directly
+   curl -H "User-Agent: Mozilla/5.0" "https://feeds.feedburner.com/reuters/health"
+   ```
 
-## 📚 API Documentation
+### Performance Optimization
 
-### Interactive Documentation
-- **Swagger UI**: http://localhost:8000/docs
-- **ReDoc**: http://localhost:8000/redoc
-- **API Root**: http://localhost:8000/api/v1/
+- **Database Indexing**: Automatic on startup
+- **Connection Pooling**: Built-in SQLite optimization
+- **Caching**: In-memory duplicate detection
+- **Parallel Processing**: Concurrent RSS fetching
 
-### Search Capabilities
-- **Full-text search** across titles, summaries, and content
-- **Date filtering** with flexible date ranges
-- **Category and tag filtering** for organized browsing
-- **Pagination** with configurable page sizes
-- **Sorting** by date (ascending/descending)
-- **Advanced filtering** by source, category, and tags
+## 🔒 Security
 
-## 🔄 Recent Improvements (v2.1.0)
+- ✅ Input validation and sanitization
+- ✅ Rate limiting on API endpoints
+- ✅ Secure HTTP headers
+- ✅ Environment-based configuration
+- ✅ SQL injection prevention
 
-### ✅ Project Structure Cleanup
-- **Consolidated database management** into single `manage_db.py` utility
-- **Removed redundant files** (check_duplicates.py, cleanup_duplicates.py, etc.)
-- **Added proper package structure** with `__init__.py` files
-- **Enhanced environment configuration** with comprehensive settings
+## 📈 Monitoring & Health Checks
 
-### ✅ Production Readiness
-- **Comprehensive database tools** for maintenance and monitoring
-- **Enhanced error handling** and logging throughout the application
-- **Optimized project structure** for easy deployment and maintenance
-- **Production-grade configuration** with detailed environment options
+### Built-in Monitoring
+- **Database Health**: Connection and integrity checks
+- **RSS Feed Status**: Feed validation and blacklist management
+- **System Performance**: Memory and processing metrics
+- **Error Tracking**: Structured logging with rotation
 
-### ✅ Developer Experience
-- **Single command database management** - `python manage_db.py [command]`
-- **Clear project organization** with logical file grouping
-- **Enhanced documentation** with practical examples
-- **Simplified deployment** process with better configuration
+### Health Check Endpoint
+```json
+{
+  "status": "healthy",
+  "timestamp": "2025-08-25T10:30:00Z",
+  "database": {
+    "articles_count": 2146,
+    "duplicates_count": 0,
+    "categories_loaded": 7
+  },
+  "scraper": {
+    "last_scrape": "2025-08-25T10:15:00Z",
+    "active_feeds": 18,
+    "blacklisted_feeds": 2
+  }
+}
+```
+
+## 🔄 Migration & Updates
+
+### Version 3.0 Changes
+- ✅ **Consolidated configuration** into single `config.yml`
+- ✅ **Enhanced RSS error handling** with retry logic
+- ✅ **Improved feed validation** and blacklist management
+- ✅ **Better logging** and monitoring
+- ✅ **Streamlined project structure**
+
+### Upgrading from v2.x
+1. **Configuration**: Old YAML files automatically consolidated
+2. **Database**: Automatic schema updates on startup
+3. **Dependencies**: Run `pip install -r requirements.txt`
+
+## 📝 Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Make changes with tests
+4. Submit a pull request
+
+## 📄 License
+
+This project is licensed under the MIT License.
+
+## 🆘 Support
+
+For issues and questions:
+- **Documentation**: Check this README and `/docs` endpoint
+- **Health Check**: Use `/api/v1/health` for system status
+- **Logs**: Check application logs for detailed error information
 
 ---
 
-**🎯 Metabolical Backend API v2.1.0 - A production-ready, duplicate-free health articles API with comprehensive database management and excellent developer experience.**
+**Built with ❤️ for health information accessibility**

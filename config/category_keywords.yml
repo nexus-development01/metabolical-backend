@@ -1,0 +1,155 @@
+# Category Keywords Configuration for Article Categorization
+# This file defines keywords for automatic categorization of health articles
+
+categories:
+  diseases:
+    tags:
+      - diabetes
+      - obesity
+      - hypertension
+      - cardiovascular
+      - heart disease
+      - cancer
+      - arthritis
+      - alzheimer
+      - dementia
+      - stroke
+      - kidney disease
+      - liver disease
+      - lung disease
+      - autoimmune
+      - inflammatory
+      - chronic disease
+      - metabolic disorder
+      - genetic disorder
+
+  news:
+    tags:
+      - breaking
+      - latest
+      - new study
+      - research
+      - clinical trial
+      - FDA approval
+      - health alert
+      - epidemic
+      - outbreak
+      - public health
+      - medical breakthrough
+      - discovery
+      - announcement
+      - update
+      - report
+      - findings
+      - results
+      - published
+
+  solutions:
+    tags:
+      - treatment
+      - therapy
+      - cure
+      - prevention
+      - remedy
+      - intervention
+      - medication
+      - drug
+      - supplement
+      - exercise
+      - diet plan
+      - lifestyle
+      - management
+      - recovery
+      - rehabilitation
+      - healing
+      - wellness program
+      - health tips
+      - natural remedy
+      - alternative medicine
+
+  fitness:
+    tags:
+      - workout
+      - exercise
+      - training
+      - gym
+      - cardio
+      - strength
+      - yoga
+      - pilates
+      - running
+      - cycling
+      - swimming
+      - fitness routine
+      - muscle building
+      - weight loss
+      - physical activity
+      - sports
+      - athletic performance
+      - endurance
+
+  mental_health:
+    tags:
+      - depression
+      - anxiety
+      - stress
+      - mental health
+      - psychology
+      - psychiatry
+      - therapy
+      - counseling
+      - mindfulness
+      - meditation
+      - wellbeing
+      - emotional health
+      - PTSD
+      - bipolar
+      - schizophrenia
+      - addiction
+      - substance abuse
+      - mental wellness
+
+  nutrition:
+    tags:
+      - diet
+      - nutrition
+      - vitamins
+      - minerals
+      - protein
+      - carbohydrates
+      - fats
+      - calories
+      - supplements
+      - organic
+      - superfood
+      - antioxidants
+      - fiber
+      - probiotics
+      - omega-3
+      - healthy eating
+      - meal planning
+      - weight management
+      - nutritional value
+
+  blogs_and_opinions:
+    tags:
+      - opinion
+      - blog
+      - editorial
+      - perspective
+      - commentary
+      - personal experience
+      - lifestyle
+      - wellness journey
+      - health tips
+      - advice
+      - recommendation
+      - review
+      - expert opinion
+      - thought leadership
+      - insights
+      - analysis
+      - discussion
+      - debate
+      - trending
+      - popular

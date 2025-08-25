@@ -141,6 +141,10 @@ class BackgroundScheduler:
     
     def _execute_scrape_with_parallelism(self, scrape_type: str, job_id: str):
         """Execute scraping with parallel processing of sources"""
+        # Ensure logger is accessible in this thread
+        import logging
+        thread_logger = logging.getLogger(__name__)
+        
         try:
             start_time = datetime.now()
             
@@ -149,7 +153,7 @@ class BackgroundScheduler:
                 sys.path.append(str(self.scrapers_dir))
                 from scraper import EnhancedHealthScraper
             except ImportError as e:
-                logger.error(f"Could not import scraper: {e}")
+                thread_logger.error(f"Could not import scraper: {e}")
                 return
             
             # Create scraper instance
@@ -165,20 +169,20 @@ class BackgroundScheduler:
                 max_articles_per_source = 15
             
             # Execute scraping with parallel processing
-            total_saved = self._scrape_sources_parallel(scraper, sources, max_articles_per_source)
+            total_saved = self._scrape_sources_parallel(scraper, sources, max_articles_per_source, thread_logger)
             
             # Clean up duplicates if it's a comprehensive scrape
             if scrape_type == "comprehensive":
                 duplicates_removed = scraper.cleanup_duplicates()
-                logger.info(f"🧹 Cleaned up {duplicates_removed} duplicate articles")
+                thread_logger.info(f"🧹 Cleaned up {duplicates_removed} duplicate articles")
             
             # Final report
             duration = (datetime.now() - start_time).total_seconds()
-            logger.info(f"✅ {scrape_type.title()} scrape completed in {duration:.1f}s")
-            logger.info(f"📰 Articles saved: {total_saved}, Duplicates: {scraper.duplicate_count}, Errors: {scraper.error_count}")
+            thread_logger.info(f"✅ {scrape_type.title()} scrape completed in {duration:.1f}s")
+            thread_logger.info(f"📰 Articles saved: {total_saved}, Duplicates: {scraper.duplicate_count}, Errors: {scraper.error_count}")
             
         except Exception as e:
-            logger.error(f"❌ Error in parallel scrape execution: {e}")
+            thread_logger.error(f"❌ Error in parallel scrape execution: {e}")
         finally:
             # Clean up job tracking
             if job_id in self.active_jobs:
@@ -192,7 +196,7 @@ class BackgroundScheduler:
         """Get high-priority sources for quick scraping"""
         return [s for s in scraper.rss_sources if s.get('priority', 3) <= 2]
     
-    def _scrape_sources_parallel(self, scraper, sources: List[Dict], max_articles: int) -> int:
+    def _scrape_sources_parallel(self, scraper, sources: List[Dict], max_articles: int, thread_logger) -> int:
         """Scrape sources in parallel using ThreadPoolExecutor"""
         total_saved = 0
         
@@ -208,7 +212,7 @@ class BackgroundScheduler:
             # Process each priority group
             for priority in sorted(priority_groups.keys()):
                 priority_sources = priority_groups[priority]
-                logger.info(f" Processing priority {priority} sources: {len(priority_sources)} sources")
+                thread_logger.info(f"🔄 Processing priority {priority} sources: {len(priority_sources)} sources")
                 
                 with concurrent.futures.ThreadPoolExecutor(max_workers=self.max_concurrent_sources) as executor:
                     # Submit all sources in this priority group
@@ -223,20 +227,20 @@ class BackgroundScheduler:
                         try:
                             saved_count = future.result()
                             total_saved += saved_count
-                            logger.info(f"    {source['name']}: {saved_count} articles")
+                            thread_logger.info(f"    {source['name']}: {saved_count} articles")
                         except Exception as e:
-                            logger.error(f"    {source['name']}: {e}")
+                            thread_logger.error(f"    {source['name']}: {e}")
                 
                 # Brief pause between priority groups
                 if priority < max(priority_groups.keys()):
                     time.sleep(2)
             
             # Process Google News separately with limited keywords
-            google_saved = self._scrape_google_news_parallel(scraper)
+            google_saved = self._scrape_google_news_parallel(scraper, thread_logger)
             total_saved += google_saved
             
         except Exception as e:
-            logger.error(f"Error in parallel scraping: {e}")
+            thread_logger.error(f"Error in parallel scraping: {e}")
         
         return total_saved
     
@@ -259,10 +263,13 @@ class BackgroundScheduler:
             return saved_count
             
         except Exception as e:
-            logger.error(f"Error scraping {source['name']}: {e}")
+            # Create a basic logger if not passed through
+            import logging
+            local_logger = logging.getLogger(__name__)
+            local_logger.error(f"Error scraping {source['name']}: {e}")
             return 0
     
-    def _scrape_google_news_parallel(self, scraper) -> int:
+    def _scrape_google_news_parallel(self, scraper, thread_logger) -> int:
         """Scrape Google News with limited keywords for faster execution"""
         try:
             # Use only top keywords for quick scraping
@@ -287,14 +294,14 @@ class BackgroundScheduler:
                         saved_count = future.result()
                         total_saved += saved_count
                         if saved_count > 0:
-                            logger.info(f"    Google News '{keyword}': {saved_count} articles")
+                            thread_logger.info(f"    Google News '{keyword}': {saved_count} articles")
                     except Exception as e:
-                        logger.error(f"    Google News '{keyword}': {e}")
+                        thread_logger.error(f"    Google News '{keyword}': {e}")
             
             return total_saved
             
         except Exception as e:
-            logger.error(f"Error in Google News scraping: {e}")
+            thread_logger.error(f"Error in Google News scraping: {e}")
             return 0
     
     def _scrape_google_keyword(self, scraper, keyword: str) -> int:
@@ -314,6 +321,7 @@ class BackgroundScheduler:
             return saved_count
             
         except Exception as e:
+            # Note: This is in main thread context, so logger is available
             logger.error(f"Error scraping Google News keyword '{keyword}': {e}")
             return 0
     

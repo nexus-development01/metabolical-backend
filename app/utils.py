@@ -40,6 +40,8 @@ if not Path(DB_PATH).exists():
 
 # Path to the consolidated configuration YAML file
 CATEGORY_YAML_PATH = Path(__file__).parent.parent / "config" / "config.yml"
+# Category keywords file path
+CATEGORY_YAML_PATH = Path(__file__).parent.parent / "config" / "config.yml"
 
 def validate_subcategory_for_category(subcategory: str, category: str) -> Optional[str]:
     """
@@ -278,7 +280,8 @@ def get_cached_category_keywords() -> Dict:
     try:
         if CATEGORY_YAML_PATH.exists():
             with open(CATEGORY_YAML_PATH, 'r', encoding='utf-8') as file:
-                _category_cache = yaml.safe_load(file) or {}
+                config_data = yaml.safe_load(file) or {}
+                _category_cache = config_data.get('categories', {})
                 logger.info(f"Loaded {len(_category_cache)} categories from {CATEGORY_YAML_PATH}")
         else:
             logger.warning(f"Category file not found: {CATEGORY_YAML_PATH}")

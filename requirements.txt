@@ -13,6 +13,7 @@ PyYAML==6.0.1
 
 # HTTP client for scraping
 requests==2.31.0
+feedparser==6.0.10
 
 # Enhanced scraping and concurrency
 tenacity==8.2.3
