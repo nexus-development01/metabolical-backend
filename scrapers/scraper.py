@@ -1354,13 +1354,16 @@ class EnhancedHealthScraper:
     
     def _is_low_quality_summary(self, summary: str) -> bool:
         """Check if a summary is low quality and should be rejected"""
-        if not summary or len(summary.strip()) < 10:
+        if not summary or len(summary.strip()) < 15:
             return True
         
         # Define patterns for weak/generic summaries
         weak_patterns = [
             "Medical research findings and scientific studies with implications for patient care and health outcomes",
             "Comprehensive, up-to-date news coverage, aggregated from sources all over the world by Google",
+            "Health information and medical insights from healthcare professionals and trusted medical sources",
+            "Evidence-based nutritional guidance and dietary recommendations for optimal health and wellness",
+            "Health news updates covering medical developments, research breakthroughs, policy changes",
             "(study page | release notes)",
             "study page | release notes",
             "Loading...",
@@ -1368,6 +1371,8 @@ class EnhancedHealthScraper:
             "Click here",
             "Subscribe to",
             "Follow us",
+            "See more",
+            "Learn more",
         ]
         
         summary_lower = summary.lower().strip()
@@ -1377,16 +1382,24 @@ class EnhancedHealthScraper:
             if pattern.lower() in summary_lower or summary_lower == pattern.lower():
                 return True
         
+        # Check if summary is just the article title repeated
+        if summary_lower.endswith(" appeared first on eat this not that"):
+            return True
+        
         # Check if summary is too generic (very common words only)
-        generic_words = ["the", "and", "of", "a", "an", "is", "are", "was", "were", "in", "on", "at", "to", "for", "with", "by"]
+        generic_words = ["the", "and", "of", "a", "an", "is", "are", "was", "were", "in", "on", "at", "to", "for", "with", "by", "this", "that"]
         words = summary_lower.split()
-        if len(words) > 0:
+        if len(words) > 3:
             generic_ratio = len([w for w in words if w in generic_words]) / len(words)
-            if generic_ratio > 0.8:  # More than 80% generic words
+            if generic_ratio > 0.75:  # More than 75% generic words
                 return True
         
         # Check if it's just a URL or link text
-        if summary_lower.startswith(('http', 'www.', 'click here', 'read more')):
+        if summary_lower.startswith(('http', 'www.', 'click here', 'read more', 'see more')):
+            return True
+        
+        # Check if it's just a news headline without context
+        if len(words) < 5 and not any(char in summary for char in '.!?'):
             return True
             
         return False
