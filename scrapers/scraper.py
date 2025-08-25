@@ -192,6 +192,7 @@ class SummaryEnhancer:
             '&lt;': '<',
             '&gt;': '>',
             '&nbsp;': ' ',
+            '&#160;': ' ',  # Non-breaking space
             '&#39;': "'",
             '&apos;': "'",
             '&hellip;': '...',
@@ -200,7 +201,14 @@ class SummaryEnhancer:
             '&rsquo;': "'",
             '&lsquo;': "'",
             '&rdquo;': '"',
-            '&ldquo;': '"'
+            '&ldquo;': '"',
+            # Unicode characters that appear as HTML entities
+            'â': '"',  # Curly quotes
+            'â': '"',  # Curly quotes  
+            'â': "'",  # Curly apostrophe
+            'â¦': '...',  # Ellipsis
+            'â': '-',   # En dash
+            'â': '—'    # Em dash
         }
         
         for entity, replacement in entities.items():
@@ -593,7 +601,7 @@ class EnhancedHealthScraper:
             },
             {
                 "name": "CDC Health News",
-                "url": "https://tools.cdc.gov/podcasts/rss.asp",
+                "url": "https://www.cdc.gov/media/rss/health-news.xml",
                 "category": "news", 
                 "tags": ["cdc", "prevention", "government"],
                 "priority": 1
@@ -1282,9 +1290,92 @@ class EnhancedHealthScraper:
         else:
             return 'news', ['general']
     
+    def decode_html_entities(self, text: str) -> str:
+        """Decode common HTML entities"""
+        if not text:
+            return ""
+        
+        # Common HTML entities
+        entities = {
+            '&quot;': '"',
+            '&amp;': '&',
+            '&lt;': '<',
+            '&gt;': '>',
+            '&nbsp;': ' ',
+            '&#160;': ' ',  # Non-breaking space
+            '&#39;': "'",
+            '&apos;': "'",
+            '&hellip;': '...',
+            '&mdash;': '—',
+            '&ndash;': '–',
+            '&rsquo;': "'",
+            '&lsquo;': "'",
+            '&rdquo;': '"',
+            '&ldquo;': '"',
+            # Unicode entities that appear as special characters
+            'â': '"',  # Smart quotes appearing as â
+            'â': '"',  # Other smart quote
+            'â': "'",  # Smart apostrophe
+            'â¦': '...',  # Ellipsis
+            'â': '-',  # Em dash
+            '\\u0026': '&',  # URL encoded ampersand
+            '\\u0027': "'",  # URL encoded apostrophe
+            '\\u0022': '"',  # URL encoded quote
+        }
+        
+        # Replace entities
+        for entity, replacement in entities.items():
+            text = text.replace(entity, replacement)
+        
+        return text.strip()
+    
+    def clean_article_title(self, title: str, source_name: str) -> str:
+        """Clean article titles, especially for PubMed and research sources"""
+        if not title:
+            return title
+            
+        # Clean HTML entities first
+        title = self.decode_html_entities(title)
+        
+        # Special handling for PubMed articles with technical prefixes
+        if "PubMed" in source_name and "|" in title:
+            # Remove patterns like "New | phs003860.v1.p1 |" 
+            # Keep only the actual descriptive title
+            parts = title.split("|")
+            for part in parts:
+                part = part.strip()
+                # Skip short parts, technical IDs, and "New" prefixes
+                if (len(part) > 20 and 
+                    not part.lower() in ['new', 'updated'] and
+                    not any(char in part for char in ['phs', '.v1.p1', 'dbGaP'])):
+                    return part
+            
+            # If no good part found, take the longest meaningful part
+            meaningful_parts = [p.strip() for p in parts if len(p.strip()) > 15]
+            if meaningful_parts:
+                return max(meaningful_parts, key=len)
+        
+        # Remove common prefixes for all sources
+        prefixes_to_remove = ['New:', 'New |', 'Latest:', 'Breaking:', 'Study:']
+        for prefix in prefixes_to_remove:
+            if title.startswith(prefix):
+                title = title[len(prefix):].strip()
+                break
+                
+        return title
+
     def save_article(self, article: Dict, source_name: str, source_tags: List[str]) -> bool:
         """Save article to database with enhanced validation and fast deduplication"""
         try:
+            # Clean title and summary first
+            if 'title' in article:
+                article['title'] = self.clean_article_title(article['title'], source_name)
+            if 'summary' in article:
+                article['summary'] = self.decode_html_entities(article['summary'])
+            if 'url' in article:
+                # Clean URL of unicode escapes
+                article['url'] = article['url'].replace('\\u0026', '&').replace('\\u0027', "'").replace('\\u0022', '"')
+            
             # Fast duplicate check first (before URL validation)
             if self._is_duplicate_fast(article['url'], article['title']):
                 self.duplicate_count += 1
