@@ -1352,6 +1352,45 @@ class EnhancedHealthScraper:
         
         return text.strip()
     
+    def _is_low_quality_summary(self, summary: str) -> bool:
+        """Check if a summary is low quality and should be rejected"""
+        if not summary or len(summary.strip()) < 10:
+            return True
+        
+        # Define patterns for weak/generic summaries
+        weak_patterns = [
+            "Medical research findings and scientific studies with implications for patient care and health outcomes",
+            "Comprehensive, up-to-date news coverage, aggregated from sources all over the world by Google",
+            "(study page | release notes)",
+            "study page | release notes",
+            "Loading...",
+            "Read more",
+            "Click here",
+            "Subscribe to",
+            "Follow us",
+        ]
+        
+        summary_lower = summary.lower().strip()
+        
+        # Check for exact matches or contains weak patterns
+        for pattern in weak_patterns:
+            if pattern.lower() in summary_lower or summary_lower == pattern.lower():
+                return True
+        
+        # Check if summary is too generic (very common words only)
+        generic_words = ["the", "and", "of", "a", "an", "is", "are", "was", "were", "in", "on", "at", "to", "for", "with", "by"]
+        words = summary_lower.split()
+        if len(words) > 0:
+            generic_ratio = len([w for w in words if w in generic_words]) / len(words)
+            if generic_ratio > 0.8:  # More than 80% generic words
+                return True
+        
+        # Check if it's just a URL or link text
+        if summary_lower.startswith(('http', 'www.', 'click here', 'read more')):
+            return True
+            
+        return False
+
     def clean_article_title(self, title: str, source_name: str) -> str:
         """Clean article titles, especially for PubMed and research sources"""
         if not title:
@@ -1457,9 +1496,14 @@ class EnhancedHealthScraper:
                 # Clean URL of unicode escapes
                 article['url'] = article['url'].replace('\\u0026', '&').replace('\\u0027', "'").replace('\\u0022', '"')
             
+            # Quality check - reject articles with weak/generic summaries
+            summary = article.get('summary', '').strip()
+            if self._is_low_quality_summary(summary):
+                logger.debug(f"Rejected low-quality article: {article.get('title', '')[:50]}...")
+                return False
+            
             # Check for identical or very similar title and summary
             title = article.get('title', '').strip()
-            summary = article.get('summary', '').strip()
             
             if title and summary:
                 title_clean = title.lower().strip()
