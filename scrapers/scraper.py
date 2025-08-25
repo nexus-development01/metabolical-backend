@@ -1354,16 +1354,32 @@ class EnhancedHealthScraper:
     
     def _is_low_quality_summary(self, summary: str) -> bool:
         """Check if a summary is low quality and should be rejected"""
-        if not summary or len(summary.strip()) < 15:
+        if not summary or len(summary.strip()) < 20:
             return True
         
-        # Define patterns for weak/generic summaries
+        summary_clean = summary.strip()
+        summary_lower = summary_clean.lower()
+        
+        # Define comprehensive patterns for weak/generic summaries
         weak_patterns = [
             "Medical research findings and scientific studies with implications for patient care and health outcomes",
             "Comprehensive, up-to-date news coverage, aggregated from sources all over the world by Google",
             "Health information and medical insights from healthcare professionals and trusted medical sources",
             "Evidence-based nutritional guidance and dietary recommendations for optimal health and wellness",
             "Health news updates covering medical developments, research breakthroughs, policy changes",
+            "Heart health information including cardiovascular disease prevention, treatment advances, and lifestyle recommendations",
+            "Comprehensive information about diabetes management, blood sugar control, and treatment options",
+            "Weight management strategies, obesity prevention methods, and healthy lifestyle guidance",
+            "Food and nutrition information focusing on healthy eating, food safety, and dietary recommendations",
+            "World Health Organization health updates and international health guidance",
+            "Centers for Disease Control health information and public health guidance",
+            "National Institutes of Health research updates and medical information",
+            "Health and wellness information from medical experts",
+            "Nutrition advice and dietary recommendations focusing on healthy food choices",
+            "Medical research news examining healthcare developments, treatment advances",
+            "Scientific research findings with implications for health, medicine",
+            "Health information examining medical developments, research findings",
+            "Healthcare insights covering treatment approaches, prevention strategies",
             "(study page | release notes)",
             "study page | release notes",
             "Loading...",
@@ -1373,33 +1389,56 @@ class EnhancedHealthScraper:
             "Follow us",
             "See more",
             "Learn more",
+            "appeared first on Eat This Not That",
         ]
-        
-        summary_lower = summary.lower().strip()
         
         # Check for exact matches or contains weak patterns
         for pattern in weak_patterns:
             if pattern.lower() in summary_lower or summary_lower == pattern.lower():
                 return True
         
-        # Check if summary is just the article title repeated
-        if summary_lower.endswith(" appeared first on eat this not that"):
-            return True
-        
-        # Check if summary is too generic (very common words only)
-        generic_words = ["the", "and", "of", "a", "an", "is", "are", "was", "were", "in", "on", "at", "to", "for", "with", "by", "this", "that"]
-        words = summary_lower.split()
-        if len(words) > 3:
-            generic_ratio = len([w for w in words if w in generic_words]) / len(words)
-            if generic_ratio > 0.75:  # More than 75% generic words
+        # Check if summary ends with common blog footers
+        footer_patterns = [
+            " appeared first on ",
+            " read more at ",
+            " subscribe to ",
+            " follow us on ",
+            " click here for ",
+        ]
+        for footer in footer_patterns:
+            if summary_lower.endswith(footer) or footer in summary_lower:
                 return True
         
-        # Check if it's just a URL or link text
-        if summary_lower.startswith(('http', 'www.', 'click here', 'read more', 'see more')):
+        # Check if summary is too generic (mostly common words)
+        words = summary_lower.split()
+        if len(words) > 3:
+            common_words = {
+                'the', 'and', 'of', 'a', 'an', 'is', 'are', 'was', 'were', 'in', 'on', 'at', 'to', 'for', 
+                'with', 'by', 'this', 'that', 'from', 'or', 'as', 'be', 'have', 'has', 'had', 'will', 
+                'would', 'can', 'could', 'should', 'may', 'might', 'must', 'shall', 'do', 'does', 'did'
+            }
+            common_count = sum(1 for word in words if word in common_words)
+            if common_count / len(words) > 0.65:  # More than 65% common words
+                return True
+        
+        # Check if it's just a URL, link text, or placeholder
+        if summary_lower.startswith(('http', 'www.', 'click here', 'read more', 'see more', 'learn more')):
             return True
         
-        # Check if it's just a news headline without context
-        if len(words) < 5 and not any(char in summary for char in '.!?'):
+        # Check if it's just a news headline without context (very short, no punctuation)
+        if (len(words) < 8 and 
+            not any(char in summary_clean for char in '.!?:;') and 
+            len(summary_clean) < 50):
+            return True
+        
+        # Check for repetitive patterns
+        if summary_lower.count('health') > 3 or summary_lower.count('medical') > 3:
+            return True
+            
+        # Check if summary lacks specific information (too many generic health terms)
+        generic_health_terms = ['health', 'medical', 'healthcare', 'wellness', 'information', 'updates', 'news', 'research', 'study', 'findings']
+        generic_term_count = sum(1 for term in generic_health_terms if term in summary_lower)
+        if generic_term_count > len(words) * 0.4:  # More than 40% generic health terms
             return True
             
         return False
@@ -1511,9 +1550,24 @@ class EnhancedHealthScraper:
             
             # Quality check - reject articles with weak/generic summaries
             summary = article.get('summary', '').strip()
+            title = article.get('title', '').strip()
+            
             if self._is_low_quality_summary(summary):
                 logger.debug(f"Rejected low-quality article: {article.get('title', '')[:50]}...")
                 return False
+            
+            # Additional check for title/summary similarity
+            if title and summary:
+                title_clean = title.lower().strip()
+                summary_clean = summary.lower().strip()
+                
+                # Reject if title and summary are too similar
+                if (title_clean == summary_clean or 
+                    title_clean in summary_clean or 
+                    summary_clean in title_clean or
+                    abs(len(title_clean) - len(summary_clean)) < 5):
+                    logger.debug(f"Rejected article with duplicate title/summary: {title[:50]}...")
+                    return False
             
             # Check for identical or very similar title and summary
             title = article.get('title', '').strip()
