@@ -1364,6 +1364,64 @@ class EnhancedHealthScraper:
                 
         return title
 
+    def clean_existing_articles_in_db(self):
+        """Clean special characters and duplicate summaries in existing database articles"""
+        logger.info("🧹 Starting database article cleaning...")
+        
+        try:
+            conn = sqlite3.connect(DB_PATH)
+            cursor = conn.cursor()
+            
+            # Get articles with special characters or duplicate title/summary
+            cursor.execute('''
+                SELECT id, title, summary, source FROM articles 
+                WHERE (title LIKE '%â%' OR summary LIKE '%â%' OR
+                       title LIKE '%â%' OR summary LIKE '%â%' OR
+                       title LIKE '%â%' OR summary LIKE '%â%' OR
+                       title = summary OR
+                       length(title) - length(summary) BETWEEN -10 AND 10)
+                LIMIT 100
+            ''')
+            
+            articles_to_fix = cursor.fetchall()
+            fixed_count = 0
+            
+            for article_id, title, summary, source in articles_to_fix:
+                # Clean title and summary
+                clean_title = self.clean_article_title(title or '', source or '')
+                clean_summary = self.decode_html_entities(summary or '')
+                
+                # Check if title and summary are too similar
+                if clean_title and clean_summary:
+                    title_clean = clean_title.lower().strip()
+                    summary_clean = clean_summary.lower().strip()
+                    
+                    if (title_clean == summary_clean or 
+                        abs(len(title_clean) - len(summary_clean)) < 10 or
+                        summary_clean in title_clean or
+                        title_clean in summary_clean):
+                        # Generate a better summary
+                        clean_summary = self._generate_contextual_summary(clean_title, source or 'Unknown')
+                
+                # Update the article
+                cursor.execute('''
+                    UPDATE articles 
+                    SET title = ?, summary = ? 
+                    WHERE id = ?
+                ''', (clean_title, clean_summary, article_id))
+                
+                fixed_count += 1
+            
+            conn.commit()
+            conn.close()
+            
+            logger.info(f"✅ Cleaned {fixed_count} articles in database")
+            return fixed_count
+            
+        except Exception as e:
+            logger.error(f"Error cleaning database articles: {e}")
+            return 0
+
     def save_article(self, article: Dict, source_name: str, source_tags: List[str]) -> bool:
         """Save article to database with enhanced validation and fast deduplication"""
         try:
@@ -1375,6 +1433,26 @@ class EnhancedHealthScraper:
             if 'url' in article:
                 # Clean URL of unicode escapes
                 article['url'] = article['url'].replace('\\u0026', '&').replace('\\u0027', "'").replace('\\u0022', '"')
+            
+            # Check for identical or very similar title and summary
+            title = article.get('title', '').strip()
+            summary = article.get('summary', '').strip()
+            
+            if title and summary:
+                title_clean = title.lower().strip()
+                summary_clean = summary.lower().strip()
+                
+                # Check if title and summary are too similar
+                if (title_clean == summary_clean or 
+                    abs(len(title_clean) - len(summary_clean)) < 10 or
+                    summary_clean in title_clean or
+                    title_clean in summary_clean):
+                    # Generate a better summary
+                    article['summary'] = self._generate_contextual_summary(title, source_name)
+                    logger.debug(f"Replaced duplicate summary for: {title[:50]}...")
+            elif title and not summary:
+                # Generate summary if missing
+                article['summary'] = self._generate_contextual_summary(title, source_name)
             
             # Fast duplicate check first (before URL validation)
             if self._is_duplicate_fast(article['url'], article['title']):
