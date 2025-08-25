@@ -1,0 +1,429 @@
+# ===============================================
+# Metabolical Backend - Comprehensive Configuration
+# Single configuration file for all scraper settings
+# ===============================================
+
+# ===============================================
+# CATEGORY KEYWORDS & CLASSIFICATION
+# ===============================================
+categories:
+  news:
+    title: "News"
+    tags:
+      - "latest"
+      - "policy and regulation"
+      - "govt schemes"
+      - "international"
+      - "recent"
+      - "new"
+      - "current"
+      - "today"
+      - "breaking news"
+      - "health policy"
+      - "medical regulation"
+      - "government schemes"
+      - "public health programs"
+      - "global health"
+      - "world health"
+      - "who"
+      - "research study"
+      - "clinical trial"
+      - "medical research"
+
+  diseases:
+    title: "Diseases"
+    tags:
+      - "diabetes"
+      - "obesity"
+      - "inflammation"
+      - "cardiovascular"
+      - "liver"
+      - "kidney"
+      - "thyroid"
+      - "metabolic"
+      - "sleep disorders"
+      - "skin"
+      - "eyes and ears"
+      - "reproductive health"
+      - "blood sugar"
+      - "insulin"
+      - "glucose"
+      - "heart disease"
+      - "cardiac"
+      - "heart attack"
+      - "stroke"
+      - "hypertension"
+      - "high blood pressure"
+      - "cancer"
+      - "tumor"
+      - "chronic inflammation"
+      - "inflammatory"
+      - "overweight"
+      - "weight gain"
+      - "bmi"
+      - "liver disease"
+      - "fatty liver"
+      - "kidney disease"
+      - "thyroid disorder"
+      - "metabolic syndrome"
+      - "insomnia"
+      - "sleep apnea"
+      - "acne"
+      - "eczema"
+      - "psoriasis"
+      - "vision problems"
+      - "hearing loss"
+      - "fertility"
+      - "infertility"
+
+  solutions:
+    title: "Solutions"
+    tags:
+      - "nutrition"
+      - "fitness"
+      - "lifestyle"
+      - "wellness"
+      - "prevention"
+      - "exercise"
+      - "workout"
+      - "physical activity"
+      - "diet"
+      - "healthy eating"
+      - "vitamins"
+      - "minerals"
+      - "treatment"
+      - "therapy"
+      - "medication"
+      - "surgery"
+      - "preventive care"
+      - "screening"
+      - "vaccination"
+      - "holistic health"
+      - "self-care"
+      - "meditation"
+      - "mindfulness"
+      - "stress management"
+      - "behavior modification"
+
+  food:
+    title: "Food"
+    tags:
+      - "natural food"
+      - "organic food"
+      - "processed food"
+      - "fish and seafood"
+      - "food safety"
+      - "organic"
+      - "whole foods"
+      - "unprocessed"
+      - "superfood"
+      - "pesticide free"
+      - "chemical free"
+      - "sustainable food"
+      - "packaged food"
+      - "fast food"
+      - "junk food"
+      - "salmon"
+      - "tuna"
+      - "omega-3"
+      - "food poisoning"
+      - "contamination"
+      - "food recall"
+      - "nutrition"
+      - "dietary"
+      - "antioxidants"
+
+  audience:
+    title: "Audience"
+    tags:
+      - "women"
+      - "men"
+      - "children"
+      - "teenagers"
+      - "seniors"
+      - "athletes"
+      - "families"
+      - "women's health"
+      - "female health"
+      - "pregnancy"
+      - "menstruation"
+      - "menopause"
+      - "men's health"
+      - "male health"
+      - "prostate"
+      - "testosterone"
+      - "children's health"
+      - "pediatric"
+      - "kids health"
+      - "teen health"
+      - "adolescent health"
+      - "elderly health"
+      - "senior health"
+      - "aging"
+      - "geriatric"
+      - "sports medicine"
+      - "athlete health"
+      - "family health"
+      - "household health"
+
+  trending:
+    title: "Trending"
+    tags:
+      - "gut health"
+      - "mental health"
+      - "hormones"
+      - "addiction"
+      - "sleep health"
+      - "sexual wellness"
+      - "microbiome"
+      - "digestive health"
+      - "probiotics"
+      - "gut bacteria"
+      - "psychological health"
+      - "depression"
+      - "anxiety"
+      - "stress"
+      - "hormonal health"
+      - "hormone balance"
+      - "estrogen"
+      - "substance abuse"
+      - "dependency"
+      - "sleep wellness"
+      - "sleep quality"
+      - "sexual health"
+      - "intimate health"
+      - "reproductive wellness"
+
+  blogs_and_opinions:
+    title: "Blogs & Opinions"
+    tags:
+      - "health blog"
+      - "wellness blog"
+      - "expert opinion"
+      - "doctor says"
+      - "medical expert"
+      - "health tips"
+      - "wellness tips"
+      - "personal health story"
+      - "patient story"
+      - "review"
+      - "recommendation"
+      - "health advice"
+
+# ===============================================
+# FALLBACK STRATEGIES & BACKUP SOURCES
+# ===============================================
+fallback_strategies:
+  # When to trigger fallback (hours without fresh content)
+  trigger_threshold_hours: 6
+  
+  # Maximum age of cached articles to promote (days)
+  max_cache_age_days: 7
+  
+  # Number of articles to promote per category
+  articles_per_category: 5
+
+# Google News fallback keywords for each category
+google_news_fallback:
+  news:
+    - "latest health news"
+    - "medical news today"
+    - "health policy news"
+    - "healthcare developments"
+    
+  diseases:
+    - "diabetes news"
+    - "heart disease research"
+    - "obesity studies"
+    - "cancer research"
+    - "mental health news"
+    
+  solutions:
+    - "medical treatments"
+    - "health solutions"
+    - "preventive medicine"
+    - "wellness strategies"
+    - "fitness research"
+    
+  food:
+    - "nutrition news"
+    - "healthy eating"
+    - "food safety"
+    - "dietary research"
+    - "organic food news"
+    
+  audience:
+    - "women's health"
+    - "men's health"
+    - "children's health"
+    - "elderly health"
+    - "family health"
+    
+  trending:
+    - "gut health research"
+    - "mental wellness"
+    - "hormone health"
+    - "sleep research"
+    - "microbiome news"
+
+# Alternative RSS feeds as backup sources
+backup_rss_feeds:
+  news:
+    - name: "Healthday News"
+      url: "https://consumer.healthday.com/rss/"
+      priority: 4
+    - name: "Medical News Today"
+      url: "https://www.medicalnewstoday.com/rss"
+      priority: 4
+      
+  diseases:
+    - name: "Diabetes.org News"
+      url: "https://www.diabetes.org/rss"
+      priority: 4
+    - name: "American Heart Association"
+      url: "https://newsroom.heart.org/rss"
+      priority: 4
+      
+  solutions:
+    - name: "Mayo Clinic News"
+      url: "https://newsnetwork.mayoclinic.org/rss/"
+      priority: 4
+    - name: "Cleveland Clinic Health Essentials"
+      url: "https://health.clevelandclinic.org/feed/"
+      priority: 4
+      
+  food:
+    - name: "Nutrition.gov"
+      url: "https://www.nutrition.gov/rss.xml"
+      priority: 4
+    - name: "Food Safety News"
+      url: "https://www.foodsafetynews.com/feed/"
+      priority: 4
+
+# ===============================================
+# FEED VALIDATION & BLACKLISTING
+# ===============================================
+
+# Alternative feeds to try when primary feeds fail
+alternative_feeds:
+  cnn_health:
+    - https://rss.cnn.com/rss/edition_health.rss
+    - https://www.cnn.com/services/rss/
+  medical_news_today:
+    - https://www.medicalnewstoday.com/rss
+    - https://www.medicalnewstoday.com/feeds
+  reuters_health:
+    - https://feeds.reuters.com/reuters/healthNews
+    - https://www.reuters.com/arcio/rss/
+  webmd:
+    - https://www.webmd.com/rss/rss.aspx?RSSSource=RSS_PUBLIC
+    - https://www.webmd.com/rss/
+
+# Blacklisted feeds (automatically managed)
+blacklisted_feeds:
+  - url: https://www.nih.gov/news-events/news-releases/rss.xml
+    reason: "404 Not Found - Feed discontinued"
+    status_code: 404
+    timestamp: "2025-08-21T00:00:00Z"
+    retry_after: "2025-09-21T00:00:00Z"
+    
+  - url: http://rss.cnn.com/rss/edition_health.rss
+    reason: "404 Not Found - Feed URL changed"
+    status_code: 404
+    timestamp: "2025-08-21T00:00:00Z"
+    retry_after: "2025-09-21T00:00:00Z"
+    
+  - url: https://www.sciencedaily.com/rss/health_medicine/environmental_health.xml
+    reason: "404 Not Found - Feed discontinued"
+    status_code: 404
+    timestamp: "2025-08-21T11:42:20.751179Z"
+    retry_after: "2025-09-20T11:42:20.751179Z"
+    
+  - url: https://www.eurekalert.org/rss/health_medicine.xml
+    reason: "404 Not Found - Feed discontinued"
+    status_code: 404
+    timestamp: "2025-08-21T11:42:22.101236Z"
+    retry_after: "2025-09-20T11:42:22.101236Z"
+
+# Feed validation settings
+feed_validation:
+  timeout_seconds: 15
+  max_retries: 3
+  retry_delay_base: 2
+  
+  # Rate limits per domain (requests per minute)
+  rate_limits:
+    default: 15
+    feeds.reuters.com: 10
+    news.google.com: 5
+    reddit.com: 2
+  
+  # User agents for rotation
+  user_agents:
+    - "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+    - "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36"
+    - "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36"
+
+# Blacklist cleanup settings
+cleanup:
+  max_blacklist_size: 100
+  remove_after_days: 90
+
+# ===============================================
+# MONITORING & ALERTING
+# ===============================================
+monitoring:
+  # Send alerts when categories are empty
+  alert_on_empty_categories: true
+  
+  # Minimum articles per category per day
+  min_articles_per_day:
+    news: 10
+    diseases: 8
+    solutions: 6
+    food: 5
+    audience: 4
+    trending: 3
+  
+  # Log detailed category statistics
+  detailed_category_logging: true
+  
+  # Check feed health every N hours
+  feed_health_check_interval: 2
+
+# ===============================================
+# SCRAPER PERFORMANCE SETTINGS
+# ===============================================
+performance:
+  # Connection settings
+  connection_timeout: 30
+  read_timeout: 60
+  max_connections: 100
+  
+  # Processing settings
+  max_workers: 4
+  batch_size: 50
+  
+  # Cache settings
+  cache_ttl_hours: 24
+  max_cache_size: 1000
+
+# ===============================================
+# DATA QUALITY SETTINGS
+# ===============================================
+quality:
+  # Minimum article length (characters)
+  min_article_length: 100
+  
+  # Maximum article age (days)
+  max_article_age_days: 30
+  
+  # Duplicate detection sensitivity (0.0 - 1.0)
+  duplicate_threshold: 0.85
+  
+  # Required fields for valid articles
+  required_fields:
+    - title
+    - url
+    - date
+    - source
