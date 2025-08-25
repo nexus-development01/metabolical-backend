@@ -1312,6 +1312,29 @@ class EnhancedHealthScraper:
             '&lsquo;': "'",
             '&rdquo;': '"',
             '&ldquo;': '"',
+            # Numeric HTML entities
+            '&#58;': ':',   # Colon
+            '&#947;': 'γ',  # Greek gamma
+            '&#945;': 'α',  # Greek alpha
+            '&#946;': 'β',  # Greek beta
+            '&#8212;': '—', # Em dash
+            '&#8211;': '–', # En dash
+            '&#8230;': '…', # Ellipsis
+            '&#8217;': "'", # Right single quotation mark
+            '&#8216;': "'", # Left single quotation mark
+            '&#8221;': '"', # Right double quotation mark
+            '&#8220;': '"', # Left double quotation mark
+            # Double-encoded entities (Unicode escape + HTML entity)
+            '\\u0026#58;': ':',   # Double-encoded colon
+            '\\u0026#947;': 'γ',  # Double-encoded gamma
+            '\\u0026#945;': 'α',  # Double-encoded alpha
+            '\\u0026#946;': 'β',  # Double-encoded beta
+            '\\u0026#39;': "'",   # Double-encoded apostrophe
+            '\\u0026#160;': ' ',  # Double-encoded non-breaking space
+            '\\u0026quot;': '"',  # Double-encoded quote
+            '\\u0026amp;': '&',   # Double-encoded ampersand
+            '\\u0026lt;': '<',    # Double-encoded less than
+            '\\u0026gt;': '>',    # Double-encoded greater than
             # Unicode entities that appear as special characters
             'â': '"',  # Smart quotes appearing as â
             'â': '"',  # Other smart quote
