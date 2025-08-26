@@ -131,6 +131,59 @@ categories:
       - weight management
       - nutritional value
 
+  food:
+    tags:
+      - food
+      - recipe
+      - cooking
+      - cuisine
+      - meal
+      - ingredient
+      - culinary
+      - restaurant
+      - chef
+      - foodie
+      - gastronomy
+      - dining
+      - eating
+      - taste
+      - flavor
+      - low-carb
+      - high-protein
+      - processed foods
+      - ultraprocessed
+      - food safety
+      - food industry
+      - food policy
+      - food security
+
+  audience:
+    tags:
+      - women
+      - men
+      - children
+      - kids
+      - teens
+      - teenagers
+      - elderly
+      - seniors
+      - adults
+      - mothers
+      - fathers
+      - parents
+      - pregnancy
+      - pregnant
+      - age-specific
+      - gender-specific
+      - demographic
+      - population
+      - community
+      - ethnic
+      - cultural
+      - socioeconomic
+      - disadvantaged
+      - vulnerable
+
   blogs_and_opinions:
     tags:
       - opinion
