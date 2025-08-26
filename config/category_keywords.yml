@@ -17,11 +17,18 @@ categories:
       - kidney disease
       - liver disease
       - lung disease
+      - thyroid
+      - thyroid disease
+      - hyperthyroidism
+      - hypothyroidism
       - autoimmune
       - inflammatory
       - chronic disease
       - metabolic disorder
       - genetic disorder
+      - reproductive health
+      - fertility
+      - menstrual health
 
   news:
     tags:
@@ -153,9 +160,20 @@ categories:
       - processed foods
       - ultraprocessed
       - food safety
+      - food contamination
+      - food recall
       - food industry
       - food policy
       - food security
+      - natural food
+      - whole food
+      - organic food
+      - organic farming
+      - clean eating
+      - fish
+      - seafood
+      - salmon
+      - omega-3
 
   audience:
     tags:
@@ -183,6 +201,31 @@ categories:
       - socioeconomic
       - disadvantaged
       - vulnerable
+      - athletes
+      - sports
+      - athletic performance
+      - families
+      - family health
+
+  trending:
+    tags:
+      - gut health
+      - microbiome
+      - mental health
+      - hormones
+      - hormonal health
+      - addiction
+      - substance abuse
+      - sleep health
+      - sleep disorder
+      - sexual wellness
+      - sexual health
+      - reproductive health
+      - longevity
+      - anti-aging
+      - biohacking
+      - wellness trends
+      - health trends
 
   blogs_and_opinions:
     tags:
