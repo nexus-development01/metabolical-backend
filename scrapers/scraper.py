@@ -599,13 +599,6 @@ class EnhancedHealthScraper:
                 "tags": ["who", "international", "policy"],
                 "priority": 1
             },
-            {
-                "name": "CDC Health News",
-                "url": "https://www.cdc.gov/media/rss/health-news.xml",
-                "category": "news", 
-                "tags": ["cdc", "prevention", "government"],
-                "priority": 1
-            },
             
             # Major News Outlets - Priority 2  
             {
@@ -621,15 +614,6 @@ class EnhancedHealthScraper:
                 "category": "news",
                 "tags": ["npr", "health", "research"],
                 "priority": 2
-            },
-            
-            # Health-Specific Publications - Priority 3
-            {
-                "name": "Healthline News",
-                "url": "https://www.healthline.com/health-news/rss",
-                "category": "solutions", 
-                "tags": ["healthline", "wellness", "lifestyle"],
-                "priority": 3
             },
             
             # Medical & Scientific Sources - Priority 2
@@ -656,13 +640,6 @@ class EnhancedHealthScraper:
             },
             
             # Academic & Research Sources
-            {
-                "name": "PubMed Central News",
-                "url": "https://www.ncbi.nlm.nih.gov/feed/rss.cgi?ChanKey=NIHNews",
-                "category": "news",
-                "tags": ["research", "academic", "health"],
-                "priority": 2
-            },
             {
                 "name": "Harvard Nutrition Source",
                 "url": "https://www.hsph.harvard.edu/nutritionsource/feed/",
@@ -727,7 +704,7 @@ class EnhancedHealthScraper:
             },
             {
                 "name": "Health Harvard Blog",
-                "url": "https://www.health.harvard.edu/blog/feed",
+                "url": "https://www.health.harvard.edu/rss",
                 "category": "blogs_and_opinions",
                 "tags": ["wellness blog", "health opinions", "medical advice"],
                 "priority": 2
@@ -740,15 +717,15 @@ class EnhancedHealthScraper:
                 "priority": 2
             },
             {
-                "name": "Verywell Health",
-                "url": "https://www.verywellhealth.com/rss",
+                "name": "Healthline Blog",
+                "url": "https://feeds.feedburner.com/healthline",
                 "category": "blogs_and_opinions",
                 "tags": ["health blog", "medical advice", "wellness"],
-                "priority": 3
+                "priority": 2
             },
             {
                 "name": "Shape Health & Fitness",
-                "url": "https://www.shape.com/rss.xml",
+                "url": "https://feeds.feedburner.com/shape",
                 "category": "blogs_and_opinions",
                 "tags": ["fitness blog", "health opinions", "wellness"],
                 "priority": 3
@@ -759,7 +736,21 @@ class EnhancedHealthScraper:
                 "category": "blogs_and_opinions",
                 "tags": ["health blog", "wellness", "self care"],
                 "priority": 3
-            }
+            },
+            {
+                "name": "MindBodyGreen",
+                "url": "https://www.mindbodygreen.com/rss.xml",
+                "category": "blogs_and_opinions",
+                "tags": ["wellness blog", "holistic health", "lifestyle"],
+                "priority": 2
+            },
+            {
+                "name": "Men's Health Magazine",
+                "url": "https://www.menshealth.com/rss",
+                "category": "blogs_and_opinions",
+                "tags": ["men's health", "fitness blog", "wellness"],
+                "priority": 2
+            },
         ]
         
         # Google News health keywords for comprehensive coverage - Enhanced for food and trending

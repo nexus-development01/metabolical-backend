@@ -333,10 +333,43 @@ def get_articles_paginated_optimized(
             params = []
             
             if search_query:
-                # Search in title, summary, AND tags for better results
-                where_conditions.append("(title LIKE ? OR summary LIKE ? OR tags LIKE ?)")
-                search_term = f"%{search_query}%"
-                params.extend([search_term, search_term, search_term])
+                # Enhanced search with relevance scoring and category prioritization
+                search_term = f"%{search_query.lower()}%"
+                
+                # Define category-specific keywords for better matching
+                category_keywords = {
+                    'food': ['food', 'nutrition', 'diet', 'eating', 'meal', 'recipe', 'ingredient', 'cooking', 'organic', 'superfood'],
+                    'fitness': ['exercise', 'workout', 'fitness', 'training', 'gym', 'cardio', 'strength', 'muscle', 'athletic'],
+                    'mental_health': ['mental', 'depression', 'anxiety', 'stress', 'psychology', 'therapy', 'mindfulness'],
+                    'diseases': ['diabetes', 'cancer', 'heart disease', 'obesity', 'cardiovascular', 'illness', 'condition'],
+                    'nutrition': ['vitamin', 'mineral', 'supplement', 'nutrient', 'protein', 'carb', 'fat', 'calorie']
+                }
+                
+                # Check if search term matches category-specific keywords
+                matched_categories = []
+                query_lower = search_query.lower()
+                for cat, keywords in category_keywords.items():
+                    if any(keyword in query_lower for keyword in keywords):
+                        matched_categories.append(cat)
+                
+                if matched_categories:
+                    # Priority search: prioritize matching categories
+                    category_conditions = []
+                    for cat in matched_categories:
+                        category_conditions.append("categories = ?")
+                        params.append(cat)
+                    
+                    # Enhanced search with category prioritization and relevance scoring
+                    where_conditions.append(f"""(
+                        (title LIKE ? OR summary LIKE ? OR tags LIKE ?) OR
+                        ({' OR '.join(category_conditions)}) OR
+                        (tags LIKE ? AND categories IN ({','.join(['?' for _ in matched_categories])}))
+                    )""")
+                    params.extend([search_term, search_term, search_term, search_term] + matched_categories)
+                else:
+                    # Standard search if no category match
+                    where_conditions.append("(title LIKE ? OR summary LIKE ? OR tags LIKE ?)")
+                    params.extend([search_term, search_term, search_term])
                 
             if category:
                 # Special handling for trending category - show recent articles with trending tags OR trending category
@@ -417,11 +450,33 @@ def get_articles_paginated_optimized(
             if where_conditions:
                 where_clause = "WHERE " + " AND ".join(where_conditions)
             
-            # Order clause - ensure deterministic ordering
-            if sort_by.upper() == "DESC":
-                order_clause = f"ORDER BY date DESC, id DESC"
+            # Order clause - prioritize relevance for search queries
+            if search_query:
+                # For search queries, prioritize relevance with date as secondary sort
+                if sort_by.upper() == "DESC":
+                    order_clause = f"""ORDER BY 
+                        CASE 
+                            WHEN title LIKE '%{search_query.lower()}%' THEN 1
+                            WHEN summary LIKE '%{search_query.lower()}%' THEN 2
+                            WHEN tags LIKE '%{search_query.lower()}%' THEN 3
+                            ELSE 4
+                        END,
+                        date DESC, id DESC"""
+                else:
+                    order_clause = f"""ORDER BY 
+                        CASE 
+                            WHEN title LIKE '%{search_query.lower()}%' THEN 1
+                            WHEN summary LIKE '%{search_query.lower()}%' THEN 2
+                            WHEN tags LIKE '%{search_query.lower()}%' THEN 3
+                            ELSE 4
+                        END,
+                        date ASC, id ASC"""
             else:
-                order_clause = f"ORDER BY date ASC, id ASC"
+                # For non-search queries, use date ordering
+                if sort_by.upper() == "DESC":
+                    order_clause = f"ORDER BY date DESC, id DESC"
+                else:
+                    order_clause = f"ORDER BY date ASC, id ASC"
             
             # Count total articles (using DISTINCT to avoid duplicates)
             count_query = f"SELECT COUNT(DISTINCT id) FROM articles {where_clause}"
@@ -983,3 +1038,339 @@ try:
     get_cached_category_keywords()
 except Exception as e:
     logger.warning(f"Could not initialize optimizations: {e}")
+
+
+# ============================================================================
+# SYSTEM MAINTENANCE AND TESTING UTILITIES
+# ============================================================================
+
+def check_category_distribution() -> Dict:
+    """Check the current category distribution"""
+    try:
+        with sqlite3.connect(DB_PATH) as conn:
+            cursor = conn.cursor()
+            
+            # Get category distribution
+            cursor.execute('''
+                SELECT categories, COUNT(*) as count 
+                FROM articles 
+                GROUP BY categories 
+                ORDER BY count DESC
+            ''')
+            
+            results = cursor.fetchall()
+            total = sum(r[1] for r in results)
+            
+            # Format results
+            distribution = {}
+            for cat, count in results:
+                distribution[cat] = {
+                    'count': count,
+                    'percentage': round((count / total) * 100, 1) if total > 0 else 0
+                }
+            
+            # Check specific categories of interest
+            key_categories = ['blogs_and_opinions', 'food', 'nutrition', 'fitness', 'mental_health']
+            key_stats = {}
+            for category in key_categories:
+                cursor.execute('SELECT COUNT(*) FROM articles WHERE categories = ?', (category,))
+                count = cursor.fetchone()[0]
+                key_stats[category] = count
+            
+            return {
+                'total_articles': total,
+                'distribution': distribution,
+                'key_categories': key_stats,
+                'status': 'success'
+            }
+            
+    except Exception as e:
+        logger.error(f"Error checking category distribution: {e}")
+        return {'status': 'error', 'error': str(e)}
+
+
+def test_search_functionality(search_terms: Optional[List[str]] = None) -> Dict:
+    """Test search functionality with various keywords"""
+    if search_terms is None:
+        search_terms = ['food', 'nutrition', 'fitness', 'diabetes']
+    
+    try:
+        results = {}
+        
+        with sqlite3.connect(DB_PATH) as conn:
+            cursor = conn.cursor()
+            
+            for search_term in search_terms:
+                search_pattern = f'%{search_term}%'
+                cursor.execute('''
+                    SELECT title, categories, tags
+                    FROM articles 
+                    WHERE title LIKE ? OR summary LIKE ? OR tags LIKE ? OR categories LIKE ?
+                    ORDER BY 
+                        CASE 
+                            WHEN title LIKE ? THEN 1
+                            WHEN summary LIKE ? THEN 2
+                            WHEN tags LIKE ? THEN 3
+                            ELSE 4
+                        END
+                    LIMIT 5
+                ''', (search_pattern, search_pattern, search_pattern, search_pattern,
+                      search_pattern, search_pattern, search_pattern))
+
+                search_results = cursor.fetchall()
+                results[search_term] = {
+                    'count': len(search_results),
+                    'results': [
+                        {
+                            'title': title[:60] + '...' if len(title) > 60 else title,
+                            'category': category,
+                            'tags': tags[:50] + '...' if tags and len(tags) > 50 else tags
+                        }
+                        for title, category, tags in search_results
+                    ]
+                }
+        
+        return {'status': 'success', 'search_results': results}
+        
+    except Exception as e:
+        logger.error(f"Error testing search functionality: {e}")
+        return {'status': 'error', 'error': str(e)}
+
+
+def validate_rss_sources(limit: int = 15) -> Dict:
+    """Test RSS sources to verify they're working"""
+    try:
+        import sys
+        import requests
+        import time
+        from pathlib import Path
+        
+        # Add project root to path for scraper import
+        BASE_DIR = Path(__file__).resolve().parent.parent
+        sys.path.append(str(BASE_DIR))
+        
+        from scrapers.scraper import EnhancedHealthScraper
+        
+        scraper = EnhancedHealthScraper()
+        total_sources = len(scraper.rss_sources)
+        
+        working = 0
+        failed = 0
+        failed_sources = []
+        working_sources = []
+        
+        for i, source in enumerate(scraper.rss_sources[:limit]):
+            try:
+                response = requests.get(source['url'], timeout=10)
+                if response.status_code == 200:
+                    working += 1
+                    working_sources.append(source['name'])
+                else:
+                    failed += 1
+                    failed_sources.append({
+                        'name': source['name'],
+                        'error': f'HTTP {response.status_code}'
+                    })
+            except Exception as e:
+                failed += 1
+                failed_sources.append({
+                    'name': source['name'],
+                    'error': str(e)[:50]
+                })
+            
+            time.sleep(0.3)  # Be respectful
+        
+        return {
+            'status': 'success',
+            'total_sources': total_sources,
+            'tested': limit,
+            'working': working,
+            'failed': failed,
+            'success_rate': round((working / limit) * 100, 1) if limit > 0 else 0,
+            'working_sources': working_sources,
+            'failed_sources': failed_sources
+        }
+        
+    except Exception as e:
+        logger.error(f"Error validating RSS sources: {e}")
+        return {'status': 'error', 'error': str(e)}
+
+
+def standardize_category_formats() -> Dict:
+    """Standardize inconsistent category formats in the database"""
+    try:
+        with sqlite3.connect(DB_PATH) as conn:
+            cursor = conn.cursor()
+            
+            # Define the mapping from old formats to new formats
+            category_mapping = {
+                '["diseases"]': 'diseases',
+                '["News"]': 'news', 
+                '["news"]': 'news',
+                '["solutions"]': 'solutions',
+                '["audience"]': 'audience',
+                '["diseases", "mental_health"]': 'diseases',
+                '["solutions", "mental_health"]': 'solutions',
+                '["trending"]': 'trending',
+                '["blogs_and_opinions"]': 'blogs_and_opinions',
+                '["food"]': 'food',
+                '["nutrition"]': 'nutrition',
+                '["fitness"]': 'fitness'
+            }
+            
+            updates_made = 0
+            update_details = []
+            
+            for old_format, new_format in category_mapping.items():
+                cursor.execute('UPDATE articles SET categories = ? WHERE categories = ?', 
+                             (new_format, old_format))
+                if cursor.rowcount > 0:
+                    update_details.append({
+                        'old_format': old_format,
+                        'new_format': new_format,
+                        'count': cursor.rowcount
+                    })
+                    updates_made += cursor.rowcount
+            
+            conn.commit()
+            
+            return {
+                'status': 'success',
+                'total_updates': updates_made,
+                'update_details': update_details,
+                'message': 'No category format issues found' if updates_made == 0 else f'Updated {updates_made} articles'
+            }
+            
+    except Exception as e:
+        logger.error(f"Error standardizing categories: {e}")
+        return {'status': 'error', 'error': str(e)}
+
+
+def system_health_check() -> Dict:
+    """Run a comprehensive system health check"""
+    try:
+        health_report = {
+            'status': 'healthy',
+            'timestamp': datetime.now().isoformat(),
+            'checks': {}
+        }
+        
+        # Check database connectivity
+        try:
+            with sqlite3.connect(DB_PATH) as conn:
+                cursor = conn.cursor()
+                cursor.execute('SELECT COUNT(*) FROM articles')
+                total_articles = cursor.fetchone()[0]
+                health_report['checks']['database'] = {
+                    'status': 'healthy',
+                    'total_articles': total_articles
+                }
+        except Exception as e:
+            health_report['checks']['database'] = {
+                'status': 'error',
+                'error': str(e)
+            }
+            health_report['status'] = 'unhealthy'
+        
+        # Check for duplicate articles
+        try:
+            with sqlite3.connect(DB_PATH) as conn:
+                cursor = conn.cursor()
+                cursor.execute('''
+                    SELECT title, COUNT(*) as count 
+                    FROM articles 
+                    GROUP BY title 
+                    HAVING count > 1 
+                    LIMIT 5
+                ''')
+                duplicates = cursor.fetchall()
+                health_report['checks']['duplicates'] = {
+                    'status': 'healthy' if len(duplicates) == 0 else 'warning',
+                    'duplicate_count': len(duplicates),
+                    'sample_duplicates': [{'title': title, 'count': count} for title, count in duplicates]
+                }
+        except Exception as e:
+            health_report['checks']['duplicates'] = {
+                'status': 'error',
+                'error': str(e)
+            }
+        
+        # Check for articles without categories
+        try:
+            with sqlite3.connect(DB_PATH) as conn:
+                cursor = conn.cursor()
+                cursor.execute('SELECT COUNT(*) FROM articles WHERE categories IS NULL OR categories = ""')
+                uncategorized = cursor.fetchone()[0]
+                health_report['checks']['categorization'] = {
+                    'status': 'healthy' if uncategorized == 0 else 'warning',
+                    'uncategorized_count': uncategorized
+                }
+        except Exception as e:
+            health_report['checks']['categorization'] = {
+                'status': 'error',
+                'error': str(e)
+            }
+        
+        # Check recent articles
+        try:
+            with sqlite3.connect(DB_PATH) as conn:
+                cursor = conn.cursor()
+                cursor.execute('SELECT COUNT(*) FROM articles WHERE date >= date("now", "-7 days")')
+                recent_articles = cursor.fetchone()[0]
+                health_report['checks']['recent_activity'] = {
+                    'status': 'healthy',
+                    'recent_articles_7_days': recent_articles
+                }
+        except Exception as e:
+            health_report['checks']['recent_activity'] = {
+                'status': 'error',
+                'error': str(e)
+            }
+        
+        return health_report
+        
+    except Exception as e:
+        logger.error(f"Error in system health check: {e}")
+        return {
+            'status': 'error',
+            'timestamp': datetime.now().isoformat(),
+            'error': str(e)
+        }
+
+
+def run_comprehensive_system_check() -> Dict:
+    """Run all system utilities and return comprehensive report"""
+    try:
+        report = {
+            'status': 'success',
+            'timestamp': datetime.now().isoformat(),
+            'checks': {}
+        }
+        
+        # Run health check
+        report['checks']['health_check'] = system_health_check()
+        
+        # Check category distribution
+        report['checks']['category_distribution'] = check_category_distribution()
+        
+        # Test search functionality
+        report['checks']['search_test'] = test_search_functionality()
+        
+        # Validate RSS sources (limited to 10 for performance)
+        report['checks']['rss_validation'] = validate_rss_sources(limit=10)
+        
+        # Check if any system is unhealthy
+        for check_name, check_result in report['checks'].items():
+            if check_result.get('status') == 'error':
+                report['status'] = 'warning'
+                break
+        
+        return report
+        
+    except Exception as e:
+        logger.error(f"Error in comprehensive system check: {e}")
+        return {
+            'status': 'error',
+            'timestamp': datetime.now().isoformat(),
+            'error': str(e)
+        }
